@@ -19,13 +19,19 @@ namespace KevinBrowser.Asisten;
 /// formulirnya tampil lagi berisi teks yang tadi diketik: tidak ada ketikan
 /// yang hilang.
 /// </remarks>
-public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<string>? bukaFolder = null) : IHalaman
+public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<string>? bukaFolder = null, AlatSerap? alat = null) : IHalaman
 {
     static readonly HashSet<string> Singkatan = new(StringComparer.OrdinalIgnoreCase) { "ipa", "ips", "pjok", "ppkn", "pkn", "tik", "p5" };
 
-    public Task<(string Judul, string Isi)> Buat(string uri, string? isiPost, Teks t)
+    // Asisten AI (menyerap materi); tidak ada kalau platform tidak menyediakan alatnya.
+    readonly HalamanSerap? serap = alat is null ? null : new HalamanSerap(buku, waktu, alat);
+
+    public async Task<(string Judul, string Isi)> Buat(string uri, string? isiPost, Teks t)
     {
         var kueri = new Kueri(uri, isiPost);
+        if (serap is not null && (kueri["ai"] is not null || kueri["serap"] is not null))
+            return await serap.Buat(kueri, isiPost is not null, t);
+
         var simpan = isiPost is not null && kueri["aksi"] == "simpan";
         var mapel = string.IsNullOrEmpty(kueri["m"]) ? null : kueri["m"];
 
@@ -37,12 +43,11 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
             pesan = t["Folder catatan dibuka di pengelola berkas.", "The notes folder was opened in the file manager."];
         }
 
-        var hasil = kueri["baru"] is not null ? Baru(t, kueri, mapel, simpan)
+        return kueri["baru"] is not null ? Baru(t, kueri, mapel, simpan)
             : kueri["sumber"] is not null ? Sumber(t)
             : kueri["cari"] is { } kata ? Cari(t, kata)
             : kueri["c"] is { } nama ? SatuCatatan(t, kueri, mapel, nama, simpan)
             : Daftar(t, pesan);
-        return Task.FromResult(hasil);
     }
 
     (string, string) Daftar(Teks t, string? pesan)
@@ -54,7 +59,8 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
                 "Study notes, saved as ordinary files on this laptop."]}</p>
             {HalamanPengaturan.Pesan(pesan)}
             {KotakCari(t, "")}
-            <p class="tombol-tombol"><a class="tombol utama" href="{HalamanBawaan.Belajar}?baru">{t["Tulis catatan", "Write a note"]}</a>{(buku.AdaSumber
+            <p class="tombol-tombol"><a class="tombol utama" href="{HalamanBawaan.Belajar}?baru">{t["Tulis catatan", "Write a note"]}</a>{(serap is null ? ""
+                : $""" <a class="tombol" href="{HalamanBawaan.Belajar}?serap">{t["Serap materi", "Turn material into notes"]}</a>""")}{(buku.AdaSumber
                 ? $""" <a class="tombol" href="{HalamanBawaan.Belajar}?sumber">{t["Dokumen sumber", "Source documents"]}</a>"""
                 : "")}</p>
 
@@ -88,6 +94,8 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
         var folder = $"<code>{HtmlEncode(Tampilan(buku.Folder))}</code>";
         var buka = bukaFolder is null ? ""
             : $""" · <a href="{HalamanBawaan.Belajar}?buka&amp;token={TokenSekali.Buat()}">{t["Buka foldernya", "Open the folder"]}</a>""";
+        if (serap is not null)
+            buka += $""" · <a href="{HalamanBawaan.Belajar}?ai">{t["Asisten AI", "AI assistant"]}</a>""";
         isi.Append($"""
             <p class="catatan">{t[$"Tersimpan di {folder}, satu folder per mata pelajaran. Berkasnya bisa dibuka dengan penyunting teks apa saja.",
                 $"Saved in {folder}, one folder per subject. The files open in any text editor."]}{buka}</p>
@@ -196,12 +204,6 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
 
     (string, string) FormBaru(Teks t, string terpilih, string mapelBaru, string judul, string isi, string? pesan)
     {
-        var semuaMapel = buku.Mapel();
-        var pilihan = semuaMapel.Count == 0 ? "" : $"""
-            <label>{t["Mata pelajaran", "Subject"]}
-            <select name="mapel"><option value="">–</option>{string.Concat(semuaMapel.Select(m =>
-                $"""<option value="{HtmlEncode(m)}"{(m.Equals(terpilih, StringComparison.OrdinalIgnoreCase) ? " selected" : "")}>{HtmlEncode(NamaMapel(m))}</option>"""))}</select></label>
-            """;
         var judulHalaman = t["Tulis catatan", "Write a note"];
         return (judulHalaman, $"""
             {Jejak(t, null)}
@@ -210,9 +212,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
             <form class="tulis" action="{HalamanBawaan.Belajar}?baru" method="post">
               <input type="hidden" name="aksi" value="simpan">
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
-              <div class="baris">{pilihan}
-              <label>{(semuaMapel.Count == 0 ? t["Mata pelajaran", "Subject"] : t["atau yang baru", "or a new one"])}
-              <input type="text" name="mapel-baru" value="{HtmlEncode(mapelBaru)}" placeholder="{t["mis. Kimia", "e.g. Chemistry"]}"></label></div>
+              {PilihanMapel(t, buku, terpilih, mapelBaru)}
               <label>{t["Judul", "Title"]} <input type="text" name="judul" value="{HtmlEncode(judul)}" required></label>
               <label for="isi">{t["Isi", "Text"]}</label>
               <textarea id="isi" name="isi" rows="18" spellcheck="false">
@@ -268,7 +268,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     // Halaman sesudah formulir tersimpan: langsung pindah ke alamat catatan,
     // tanpa JavaScript. Penundaan 0 membuat WebKit mengganti entri riwayat
     // POST ini, bukan menambah entri baru.
-    static (string, string) Pindah(Teks t, string alamat)
+    internal static (string, string) Pindah(Teks t, string alamat)
     {
         var judul = t["Tersimpan", "Saved"];
         return (judul, $"""
@@ -276,6 +276,22 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
             <h1>{judul}</h1>
             <p><a href="{HtmlEncode(alamat)}">{t["Buka catatannya", "Open the note"]}</a></p>
             """);
+    }
+
+    /// <summary>Pilih mata pelajaran yang sudah ada, atau tulis yang baru (isian "mapel" dan "mapel-baru").</summary>
+    internal static string PilihanMapel(Teks t, BukuCatatan buku, string terpilih, string mapelBaru)
+    {
+        var semuaMapel = buku.Mapel();
+        var pilihan = semuaMapel.Count == 0 ? "" : $"""
+            <label>{t["Mata pelajaran", "Subject"]}
+            <select name="mapel"><option value="">–</option>{string.Concat(semuaMapel.Select(m =>
+                $"""<option value="{HtmlEncode(m)}"{(m.Equals(terpilih, StringComparison.OrdinalIgnoreCase) ? " selected" : "")}>{HtmlEncode(NamaMapel(m))}</option>"""))}</select></label>
+            """;
+        return $"""
+            <div class="baris">{pilihan}
+            <label>{(semuaMapel.Count == 0 ? t["Mata pelajaran", "Subject"] : t["atau yang baru", "or a new one"])}
+            <input type="text" name="mapel-baru" value="{HtmlEncode(mapelBaru)}" placeholder="{t["mis. Kimia", "e.g. Chemistry"]}"></label></div>
+            """;
     }
 
     static (string, string) TidakAda(Teks t)
@@ -296,7 +312,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
         </form>
         """;
 
-    static string Jejak(Teks t, string? mapel) =>
+    internal static string Jejak(Teks t, string? mapel) =>
         $"""<p class="jejak"><a href="{HalamanBawaan.Belajar}">{t["Belajar", "Learn"]}</a>{(mapel is null ? "" : $" › {HtmlEncode(NamaMapel(mapel))}")}</p>""";
 
     static string PetunjukFormat(Teks t) =>
@@ -306,7 +322,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
 
     static string Jumlah(Teks t, int n) => t[$"{n} catatan", n == 1 ? "1 note" : $"{n} notes"];
 
-    static string Alamat(Catatan c) =>
+    internal static string Alamat(Catatan c) =>
         HalamanBawaan.Belajar + "?" + (c.Mapel is null ? "" : $"m={Uri.EscapeDataString(c.Mapel)}&") + $"c={Uri.EscapeDataString(c.Nama)}";
 
     // Yang terbaru dulu (awalan tanggal nama berkas), lalu menurut judul.
@@ -333,7 +349,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     }
 
     // "/home/kevin/kevin-catatan" → "~/kevin-catatan"
-    static string Tampilan(string jalur)
+    internal static string Tampilan(string jalur)
     {
         var rumah = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return rumah.Length > 1 && (jalur == rumah || jalur.StartsWith(rumah + Path.DirectorySeparatorChar, StringComparison.Ordinal))

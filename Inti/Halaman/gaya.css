@@ -258,6 +258,7 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--petak-gelap); 
 }
 
 .tombol:hover { background: var(--sorot); }
+.tombol:disabled { opacity: 0.45; cursor: not-allowed; }
 .tombol.utama { background: var(--petak-gelap); border-color: transparent; color: #fffaf2; }
 .tombol.utama:hover { background: var(--aksen); }
 .tombol.bahaya { background: #b5452f; border-color: transparent; color: #fff; }
@@ -407,7 +408,7 @@ details.mapel summary { cursor: pointer; }
 
 .tulis label { display: block; margin: 0 0 0.8rem; font-weight: 600; }
 
-.tulis input[type="text"], .tulis select, .tulis textarea {
+.tulis input[type="text"], .tulis input[type="password"], .tulis select, .tulis textarea {
   display: block;
   width: 100%;
   margin-top: 0.3rem;
@@ -435,6 +436,11 @@ details.mapel summary { cursor: pointer; }
 .hasil-cari li { margin: 0; padding: 0.5rem 0; border-bottom: 1px solid var(--garis); }
 .cuplikan { font-size: 0.9rem; color: var(--redup); }
 mark { background: var(--sorot); color: inherit; border-radius: 0.2em; }
+
+/* Kemajuan serap materi */
+.tahap li { color: var(--redup); }
+.tahap li.selesai { color: var(--teks); }
+.tahap li.sedang { color: var(--teks); font-weight: 600; }
 
 /* Kaki */
 

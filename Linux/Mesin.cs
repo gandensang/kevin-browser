@@ -90,7 +90,9 @@ static class Mesin
         Bookmark = new DaftarBookmark(Path.Combine(folderData, "bookmark.tsv"));
         TabTerbuka = new TabTerbuka(Path.Combine(folderData, "tab.tsv"));
         Preferensi = new Preferensi(BerkasPreferensi(folderData));
-        var belajar = new HalamanBelajar(new BukuCatatan(FolderCatatan()), TimeProvider.System, BukaFolder);
+        var alat = new AlatSerap(new PengaturanAi(Path.Combine(folderData, BerkasAsisten)), new JaringanSoup(),
+            GLib.Functions.GetUserSpecialDir(GLib.UserDirectory.DirectoryDownload) ?? GLib.Functions.GetHomeDir(), TeksPdf.Ambil);
+        var belajar = new HalamanBelajar(new BukuCatatan(FolderCatatan()), TimeProvider.System, BukaFolder, alat);
         Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar);
 
         setelanWeb = WebKit.Settings.New();
@@ -258,6 +260,9 @@ static class Mesin
     const string Profil = "kevin-browser" + (Debug ? "-debug" : "");
 
     static string BerkasPreferensi(string folderData) => Path.Combine(folderData, "preferensi.tsv");
+
+    /// <summary>Model dan kunci API asisten (izin 600), di folder data.</summary>
+    public const string BerkasAsisten = "asisten.tsv";
 
     /// <summary>
     /// Bahasa pilihan pemakai sebelum GTK dan WebKit dimuat (pesan galat di

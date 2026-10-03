@@ -89,8 +89,14 @@ the address to the window that's already open.
   reads and writes the notes, plain Markdown files in `~/kevin-catatan`, one
   folder per subject, and never touches anything outside that folder.
   `Markah` turns a note into HTML, escaping everything: notes may contain
-  text from websites. `HalamanBelajar` builds the pages. No GTK or WebKit
-  here either; the study assistant will grow in this project.
+  text from websites. `HalamanBelajar` builds the pages. `Penyerap`
+  ("absorber") turns study material into notes with one DeepSeek call
+  (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
+  `sumber.md` so nothing is processed twice, and writes the notes; the model
+  only turns text into JSON notes and has no tools, so a document can't make
+  it do anything. HTTP goes through `IJaringan`, which `Linux/` implements
+  with libsoup (already loaded by WebKit): .NET's `HttpClient` would add
+  megabytes to the binary. No GTK or WebKit here either.
 - **`Linux/`**: the application. `Program` prepares the environment, `Mesin`
   ("engine") creates one WebContext and NetworkSession shared by all tabs
   (every global memory-saving setting lives there), `Jendela` ("window") is

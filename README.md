@@ -14,7 +14,7 @@ build his own browser.
 **This is that browser.** Kevin Browser opens the modern web (YouTube, Google
 Docs, WhatsApp Web, news sites) on a laptop like Kevin's. It puts tabs to
 sleep, blocks ads and trackers, refuses to let videos play on their own, and
-ships as a single 5.1 MB file for Linux.
+ships as a single 5.3 MB file for Linux.
 
     kevin-browser                       # opens the home page
     kevin-browser detik.com             # opens an address
@@ -97,10 +97,11 @@ you don't have to.
 
 - **Chess.** Chess is our children's hobby, so something chess-related will
   come, in a form a weak laptop can carry.
-- **A study assistant.** The first step is already here: Learn
-  (`kevin://belajar`), a notebook of plain Markdown files. Next comes turning
-  study material into notes and helping students learn from them, not just
-  answering questions, as long as it costs the laptop next to nothing.
+- **A study assistant.** The first steps are already here: Learn
+  (`kevin://belajar`), a notebook of plain Markdown files, which can turn
+  study material into notes with your own DeepSeek API key. Next comes
+  helping students learn from those notes, not just answering questions, as
+  long as it costs the laptop next to nothing.
 
 ## What makes it light
 
@@ -203,7 +204,10 @@ The home page (`kevin://beranda`) has a Google search box and your bookmarks.
 The top menu holds just Home, Learn, Settings, and a spot for what's coming
 next. Learn (`kevin://belajar`) is a notebook for school: notes are plain
 Markdown files in `~/kevin-catatan`, one folder per subject, which you can
-read, search, and write there or open in any text editor. The pages about
+read, search, and write there or open in any text editor. With your own
+DeepSeek API key, it can also turn study material (a PDF, a text file, or
+pasted text) into notes; the estimated cost is shown before anything is
+sent. The pages about
 the browser itself (Story, Pros & Cons, Guide, Plans, About Us) sit at the
 bottom of every page, and all of them work offline.
 
@@ -224,7 +228,8 @@ Your data (history, bookmarks, cookies, open tabs, settings) stays in
 `~/.local/share/kevin-browser/` and can be cleared from `kevin://pengaturan`.
 Your notes stay in `~/kevin-catatan/`.
 Kevin Browser itself sends nothing to any server: apart from the sites you
-open, the only thing it downloads is the block lists, once a week.
+open, it only downloads the block lists once a week, and, if you set up the
+AI assistant, sends the material you choose to DeepSeek.
 
 ## License
 

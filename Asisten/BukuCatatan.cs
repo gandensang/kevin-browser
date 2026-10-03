@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace KevinBrowser.Asisten;
@@ -44,6 +45,10 @@ public sealed class BukuCatatan(string folder)
     // Judul per berkas, supaya daftar catatan tidak membaca ulang semua berkas
     // setiap kali dibuka: laptop lama sering masih memakai harddisk.
     readonly Dictionary<string, (DateTime Diubah, long Ukuran, string Judul)> judulTersimpan = [];
+
+    // Penyerap menulis dari thread latar sementara halaman dibaca di thread
+    // utama: daftar judul dan penulisan berkas dijaga satu kunci.
+    readonly object kunci = new();
 
     public string Folder => folder;
 
@@ -105,11 +110,14 @@ public sealed class BukuCatatan(string folder)
         var teks = Rapikan(isi);
         if (Jalur(mapel, nama) is not { } jalur || Encoding.UTF8.GetByteCount(teks) > UkuranMaks)
             return HasilSimpan.Ditolak;
-        if (Sidik(mapel, nama) != sidikAwal)
-            return HasilSimpan.BerubahDiDisk;
-        Directory.CreateDirectory(Path.GetDirectoryName(jalur)!);
-        TulisAtomik(jalur, teks);
-        return HasilSimpan.Tersimpan;
+        lock (kunci)
+        {
+            if (Sidik(mapel, nama) != sidikAwal)
+                return HasilSimpan.BerubahDiDisk;
+            Directory.CreateDirectory(Path.GetDirectoryName(jalur)!);
+            TulisAtomik(jalur, teks);
+            return HasilSimpan.Tersimpan;
+        }
     }
 
     /// <summary>
@@ -121,7 +129,7 @@ public sealed class BukuCatatan(string folder)
     public Catatan? Tulis(string mapel, string judul, string isi, DateTime sekarang)
     {
         judul = SatuBaris(judul);
-        if (FolderMapel(mapel) is not { } folderMapel || judul.Length == 0)
+        if (NamaFolderMapel(mapel) is not { } folderMapel || judul.Length == 0)
             return null;
 
         var teks = Rapikan(isi);
@@ -129,13 +137,135 @@ public sealed class BukuCatatan(string folder)
         if (Encoding.UTF8.GetByteCount(lengkap) > UkuranMaks)
             return null;
 
-        var dasar = $"{sekarang:yyyy-MM}-{(Slug(judul) is { Length: > 0 } slug ? slug : "catatan")}";
+        lock (kunci)
+        {
+            var nama = NamaBaru(folderMapel, Slug(judul), sekarang, []);
+            Directory.CreateDirectory(Path.Combine(folder, folderMapel));
+            TulisAtomik(Path.Combine(folder, folderMapel, nama + ".md"), lengkap);
+            return Ambil(folderMapel, nama);
+        }
+    }
+
+    /// <summary>
+    /// Catatan hasil serapan, di folder mata pelajarannya. Baris pertama tiap
+    /// catatan menyebut sumbernya; nama berkas berawalan bulan, dan tautan
+    /// [[nama]] antarcatatan di kelompok ini ikut diganti ke nama berkasnya.
+    /// </summary>
+    public List<Catatan> TulisSerapan(string folderMapel, IReadOnlyList<CatatanSerapan> semua, string sumber, DateTime sekarang)
+    {
+        if (!NamaAman(folderMapel))
+            throw new IOException("nama mata pelajaran tidak boleh dipakai");
+        lock (kunci)
+        {
+            var nama = new List<string>();
+            var peta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in semua)
+            {
+                var slug = Slug(c.Nama) is { Length: > 0 } dariNama ? dariNama : Slug(JudulDari(c.Isi) ?? "");
+                var akhir = NamaBaru(folderMapel, slug, sekarang, nama);
+                nama.Add(akhir);
+                peta.TryAdd(c.Nama.Trim(), akhir);
+                if (slug.Length > 0)
+                    peta.TryAdd(slug, akhir);
+            }
+            Directory.CreateDirectory(Path.Combine(folder, folderMapel));
+            var hasil = new List<Catatan>();
+            for (var i = 0; i < semua.Count; i++)
+            {
+                TulisAtomik(Path.Combine(folder, folderMapel, nama[i] + ".md"),
+                    Rapikan($"Sumber: {SatuBaris(sumber)}\n\n{GantiTautan(semua[i].Isi, peta)}"));
+                hasil.Add(Ambil(folderMapel, nama[i])!);
+            }
+            return hasil;
+        }
+    }
+
+    /// <summary>
+    /// Satu baris baru di sumber.md (dibuat kalau belum ada), dengan kolom yang
+    /// sama seperti yang sudah dipakai: berkas, ukuran, waktu-ubah, diserap,
+    /// jadi catatan.
+    /// </summary>
+    public void TambahSumber(string berkas, long ukuran, long waktuUbah, DateTime diserap, IEnumerable<Catatan> catatan)
+    {
+        var jalur = Path.Combine(folder, BerkasSumber);
+        var baris = $"| {SatuBaris(berkas).Replace('|', '/')} | {ukuran} | {waktuUbah} | {diserap:yyyy-MM-dd} | "
+            + string.Join(", ", catatan.Select(c => c.Mapel is null ? c.Nama + ".md" : $"{c.Mapel}/{c.Nama}.md")) + " |\n";
+        lock (kunci)
+        {
+            Directory.CreateDirectory(folder);
+            var info = new FileInfo(jalur);
+            if (!info.Exists)
+                File.WriteAllText(jalur, KepalaSumber + baris, new UTF8Encoding(false));
+            else if (Aman(info))
+            {
+                var lama = File.ReadAllText(jalur);
+                File.AppendAllText(jalur, (lama.Length == 0 || lama.EndsWith('\n') ? "" : "\n") + baris, new UTF8Encoding(false));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Kolom "jadi catatan" sumber.md kalau berkas dengan nama, ukuran, dan
+    /// waktu ubah yang sama persis sudah pernah diserap; null kalau belum.
+    /// Memeriksa daftar ini murah, membaca ulang PDF-nya mahal.
+    /// </summary>
+    public string? SudahDiserap(string berkas, long ukuran, long waktuUbah)
+    {
+        foreach (var baris in (BacaSumber() ?? "").Split('\n'))
+        {
+            var sel = baris.Trim().Trim('|').Split('|');
+            if (sel.Length >= 5 && sel[0].Trim() == berkas && sel[1].Trim() == ukuran.ToString(CultureInfo.InvariantCulture)
+                && sel[2].Trim() == waktuUbah.ToString(CultureInfo.InvariantCulture))
+                return sel[4].Trim();
+        }
+        return null;
+    }
+
+    const string KepalaSumber = """
+        # Dokumen yang sudah diserap jadi catatan
+
+        Waktu-ubah = detik sejak 1 Januari 1970 (UTC), dipakai untuk mendeteksi
+        berkas yang diperbarui.
+
+        | berkas | ukuran | waktu-ubah | diserap | jadi catatan |
+        |--------|--------|------------|---------|--------------|
+
+        """;
+
+    // "2026-10-slug", "2026-10-slug-2", …: belum ada di disk dan belum
+    // dipakai di kelompok yang sama.
+    string NamaBaru(string folderMapel, string slug, DateTime sekarang, List<string> terpakai)
+    {
+        var dasar = $"{sekarang:yyyy-MM}-{(slug.Length > 0 ? slug : "catatan")}";
         var nama = dasar;
-        for (var i = 2; File.Exists(Path.Combine(folder, folderMapel, nama + ".md")); i++)
+        for (var i = 2; File.Exists(Path.Combine(folder, folderMapel, nama + ".md")) || terpakai.Contains(nama); i++)
             nama = $"{dasar}-{i}";
-        Directory.CreateDirectory(Path.Combine(folder, folderMapel));
-        TulisAtomik(Path.Combine(folder, folderMapel, nama + ".md"), lengkap);
-        return Ambil(folderMapel, nama);
+        return nama;
+    }
+
+    static string? JudulDari(string isi) =>
+        isi.Split('\n').Take(40).Select(JudulBaris).FirstOrDefault(j => j is not null);
+
+    // [[nama]] dan [[nama|label]] yang ada di peta diganti ke nama berkasnya.
+    static string GantiTautan(string isi, Dictionary<string, string> peta)
+    {
+        var hasil = new StringBuilder(isi.Length);
+        var i = 0;
+        while (i < isi.Length)
+        {
+            var buka = isi.IndexOf("[[", i, StringComparison.Ordinal);
+            var tutup = buka < 0 ? -1 : isi.IndexOf("]]", buka + 2, StringComparison.Ordinal);
+            if (tutup < 0)
+                break;
+            var dalam = isi[(buka + 2)..tutup];
+            var garis = dalam.IndexOf('|');
+            var sasaran = garis < 0 ? dalam : dalam[..garis];
+            hasil.Append(isi, i, buka - i).Append("[[");
+            hasil.Append(peta.TryGetValue(sasaran.Trim(), out var baru) ? baru + (garis < 0 ? "" : dalam[garis..]) : dalam);
+            hasil.Append("]]");
+            i = tutup + 2;
+        }
+        return hasil.Append(isi, i, isi.Length - i).ToString();
     }
 
     /// <summary>
@@ -231,9 +361,12 @@ public sealed class BukuCatatan(string folder)
         return Angka(nama, 8, 2) && nama.Length > 10 && nama[10] == '-' ? 11 : 8;
     }
 
-    // Folder yang sudah ada dipakai apa adanya, juga yang dibuat di luar
-    // browser ini (mis. "Bahasa Inggris"); nama baru dijadikan slug.
-    string? FolderMapel(string mapel)
+    /// <summary>
+    /// Folder untuk mata pelajaran <paramref name="mapel"/>: folder yang sudah
+    /// ada dipakai apa adanya, juga yang dibuat di luar browser ini (mis.
+    /// "Bahasa Inggris"); nama baru dijadikan slug. Null kalau tidak bisa.
+    /// </summary>
+    public string? NamaFolderMapel(string mapel)
     {
         mapel = SatuBaris(mapel);
         var slug = Slug(mapel);
@@ -269,12 +402,15 @@ public sealed class BukuCatatan(string folder)
 
     string Judul(FileInfo berkas, string nama)
     {
-        if (judulTersimpan.TryGetValue(berkas.FullName, out var simpanan)
-            && simpanan.Diubah == berkas.LastWriteTimeUtc && simpanan.Ukuran == berkas.Length)
-            return simpanan.Judul;
-        var judul = JudulDariIsi(berkas) ?? JudulDariNama(nama);
-        judulTersimpan[berkas.FullName] = (berkas.LastWriteTimeUtc, berkas.Length, judul);
-        return judul;
+        lock (kunci)
+        {
+            if (judulTersimpan.TryGetValue(berkas.FullName, out var simpanan)
+                && simpanan.Diubah == berkas.LastWriteTimeUtc && simpanan.Ukuran == berkas.Length)
+                return simpanan.Judul;
+            var judul = JudulDariIsi(berkas) ?? JudulDariNama(nama);
+            judulTersimpan[berkas.FullName] = (berkas.LastWriteTimeUtc, berkas.Length, judul);
+            return judul;
+        }
     }
 
     // Judul "# …" di 40 baris pertama; baris pertama catatan sering

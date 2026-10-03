@@ -34,7 +34,10 @@ sealed class LayananPalsu : ILayanan, IDisposable
         Bookmark = new DaftarBookmark(Path.Combine(folder, "bookmark.tsv"));
         Preferensi = new Preferensi(Path.Combine(folder, "preferensi.tsv"));
         Catatan = new BukuCatatan(Path.Combine(folder, "catatan"));
-        Belajar = new HalamanBelajar(Catatan, Waktu, FolderDibuka.Add);
+        FolderUnduhan = Directory.CreateDirectory(Path.Combine(folder, "unduhan")).FullName;
+        PengaturanAi = new PengaturanAi(Path.Combine(folder, "asisten.tsv"));
+        Belajar = new HalamanBelajar(Catatan, Waktu, FolderDibuka.Add,
+            new AlatSerap(PengaturanAi, Jaringan, FolderUnduhan, (berkas, batal) => PdfKeTeks(berkas, batal)));
     }
 
     public Riwayat Riwayat { get; }
@@ -46,6 +49,13 @@ sealed class LayananPalsu : ILayanan, IDisposable
     public BukuCatatan Catatan { get; }
     public IHalaman? Belajar { get; }
     public List<string> FolderDibuka { get; } = [];
+    public string FolderUnduhan { get; }
+    public PengaturanAi PengaturanAi { get; }
+    public JaringanPalsu Jaringan { get; } = new();
+
+    /// <summary>Pengganti pdftotext: "PDF" uji berisi teks biasa, halaman dipisah "---".</summary>
+    public Func<string, CancellationToken, Task<string?>> PdfKeTeks { get; set; } =
+        (berkas, _) => Task.FromResult<string?>(File.ReadAllText(berkas).Replace("---", "\f"));
 
     public long UkuranCache() => 76L * 1024 * 1024;
     public long UkuranDataSitus() => 3L * 1024 * 1024;

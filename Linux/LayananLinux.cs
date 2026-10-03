@@ -20,15 +20,16 @@ sealed class LayananLinux(Riwayat riwayat, DaftarBookmark bookmark, Preferensi p
 
     public long UkuranCache() => Penyimpanan.UkuranFolder(folderCache);
 
-    // Riwayat, bookmark, pilihan, daftar tab, dan daftar pemblokir juga ada
-    // di folder data, tapi bukan data situs: ditampilkan terpisah, dan tidak
-    // ikut terhapus.
+    // Riwayat, bookmark, pilihan, daftar tab, pengaturan asisten, dan daftar
+    // pemblokir juga ada di folder data, tapi bukan data situs: ditampilkan
+    // terpisah, dan tidak ikut terhapus.
     public long UkuranDataSitus() =>
         Penyimpanan.UkuranFolder(folderData)
         - Ukuran(riwayat.Berkas)
         - Ukuran(bookmark.Berkas)
         - Ukuran(preferensi.Berkas)
         - Ukuran(Mesin.TabTerbuka.Berkas)
+        - Ukuran(Path.Combine(folderData, Mesin.BerkasAsisten))
         - Penyimpanan.UkuranFolder(Path.Combine(folderData, "penyaring"));
 
     static long Ukuran(string berkas) => File.Exists(berkas) ? new FileInfo(berkas).Length : 0;

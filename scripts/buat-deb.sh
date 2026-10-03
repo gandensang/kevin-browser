@@ -33,6 +33,8 @@ ukuran=$(du -sk "$akar/usr" "$akar/etc" | awk '{ s += $1 } END { print s }')
 # ditulis sendiri. Codec di Recommends adalah yang terpasang di laptop
 # pengembang (lewat mint-meta-codecs) selama semua pengujian video.
 # va-driver-all + libva-drm2: decode H.264 di kartu grafis (PenguraiVideo).
+# poppler-utils: pdftotext, untuk menyerap materi PDF jadi catatan
+# (kevin://belajar); di Mint sudah terpasang bersama sistem cetak.
 mkdir "$akar/DEBIAN"
 cat > "$akar/DEBIAN/control" << EOF
 Package: kevin-browser
@@ -41,7 +43,7 @@ Architecture: amd64
 Maintainer: $pemelihara
 Installed-Size: $ukuran
 Depends: libc6 (>= 2.34), libgtk-4-1 (>= 4.14), libwebkitgtk-6.0-4 (>= 2.44)
-Recommends: gstreamer1.0-libav, gstreamer1.0-plugins-bad, va-driver-all, libva-drm2
+Recommends: gstreamer1.0-libav, gstreamer1.0-plugins-bad, va-driver-all, libva-drm2, poppler-utils
 Section: web
 Priority: optional
 Homepage: https://github.com/gandensang/kevin-browser
