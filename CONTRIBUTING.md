@@ -94,11 +94,16 @@ the address to the window that's already open.
   (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
   `sumber.md` so nothing is processed twice, and writes the notes; the model
   only turns text into JSON notes and has no tools, so a document can't make
-  it do anything. `Penanya` ("asker") answers questions from the notes with a
+  it do anything. `Penanya` ("asker") teaches from the notes in a chat with a
   small tool loop: the model may call two read-only tools, `cari_catatan`
   (search) and `baca_catatan` (read one note), for at most four rounds, and
   the code runs them (`AlatCatatan`). There is no tool that writes, deletes,
-  or opens anything. HTTP goes through `IJaringan`, which `Linux/` implements
+  or opens anything. Its instructions (`PromptTanya`) ask for a tutor who
+  explains one idea at a time and asks a question back, with a short example
+  exchange: the models otherwise write articles. Each new message carries the
+  chat so far, including the notes already read, so the model can respond to
+  the student's answer without reading again, and DeepSeek's cache covers
+  everything before the new message. HTTP goes through `IJaringan`, which `Linux/` implements
   with libsoup (already loaded by WebKit): .NET's `HttpClient` would add
   megabytes to the binary. No GTK or WebKit here either.
 - **`Linux/`**: the application. `Program` prepares the environment, `Mesin`
@@ -166,6 +171,13 @@ Each of these cost hours. Read them before touching `Linux/`.
   video calls are impossible whatever the permissions.
 - **`NetworkSession` doesn't store cookies on disk** without
   `SetPersistentStorage`.
+- **A `kevin://` page that reloads itself** (`<meta http-equiv="refresh">`,
+  as the chat page does every 2 seconds while the AI answers) pays for its
+  layout on every reload. `position: sticky` alone took the chat page from
+  about 5% to 8–9% of a core with software rendering, so its message box is
+  sticky only when no answer is pending. Also, browsers ignore `autofocus`
+  when the address has a `#fragment`; the chat page makes the message box
+  itself the fragment target, which scrolls it into view and focuses it.
 
 ## Testing
 

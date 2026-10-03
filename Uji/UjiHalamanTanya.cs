@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using KevinBrowser;
+using KevinBrowser.Asisten;
 
 namespace Uji;
 
@@ -81,7 +82,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
     {
         var html = await Html("kevin://belajar?tanya");
         Assert.Contains("Belum ada kunci API DeepSeek", html);
-        Assert.Contains("type=\"submit\" disabled>Tanya</button>", html);
+        Assert.Contains("type=\"submit\" disabled>Kirim</button>", html);
     }
 
     [Fact]
@@ -97,20 +98,26 @@ public sealed partial class UjiHalamanTanya : IDisposable
         var mulai = await Html("kevin://belajar?tanya");
         Assert.Contains("autofocus", mulai);
         Assert.Contains("Model: deepseek-flash", mulai);
+        Assert.Contains("<div class=\"gelembung ai\"><p>Halo! Mau belajar apa hari ini?", mulai);   // sapaan tetap, tanpa AI
+        Assert.DoesNotContain("class=\"saran\"", mulai);   // tombol saran hanya untuk obrolan tentang satu catatan
+        Assert.Contains("type=\"submit\">Kirim</button>", mulai);
         var alamat = await Kirim("kevin://belajar?tanya", "Apa itu gaya gesek <statis>?");
         var html = await TungguSelesai(alamat);
 
-        Assert.Contains("<p class=\"pertanyaan\">Apa itu gaya gesek &lt;statis&gt;?</p>", html);
-        Assert.Contains("<strong>Statis</strong> bekerja", html);
+        Assert.Contains("<p class=\"gelembung siswa\">Apa itu gaya gesek &lt;statis&gt;?</p>", html);
+        Assert.Contains("<div class=\"gelembung ai isi-catatan\"><p><strong>Statis</strong> bekerja", html);
         Assert.Contains("Lihat <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a> dan", html);
         Assert.Contains("<span class=\"putus\">tidak-ada</span>", html);
-        Assert.Contains("Catatan yang dibaca: <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a>", html);
-        Assert.Contains("deepseek-flash · 3.600 token masuk (2.700 dari cache), 150 keluar · biaya &lt;$0,001 · 0 detik", html);
-        Assert.Contains("<section class=\"giliran\" id=\"akhir\">", html);
-        Assert.Contains("Pertanyaan lanjutan", html);
-        Assert.Contains("href=\"kevin://belajar?tanya\">Pertanyaan baru</a>", html);
+        Assert.Contains("<p class=\"info\" title=\"deepseek-flash · 3.600 token masuk (2.700 dari cache), 150 keluar · 0 detik\">"
+            + "Catatan yang dibaca: <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a> · &lt;$0,001</p>", html);
+        // #akhir di alamat: browser menggulir ke kotak tulis dan memfokuskannya.
+        Assert.Contains("<form class=\"kirim menempel\" action=\"kevin://belajar?tanya&amp;obrolan=", html);
+        Assert.Contains("<textarea id=\"akhir\" name=\"pertanyaan\"", html);
+        Assert.Contains("placeholder=\"Tulis jawabanmu, atau tanya lagi\"", html);
+        Assert.Contains("href=\"kevin://belajar?tanya\">Obrolan baru</a>", html);
+        Assert.Contains("biaya obrolan ini &lt;$0,001", html);
 
-        // Pertanyaan lanjutan dari formulir di bawah jawaban.
+        // Pesan berikutnya dari kotak tulis di bawah jawaban.
         var obrolan = alamat[..alamat.IndexOf('#')];
         Assert.Equal(alamat, await Kirim(obrolan, "Kalau kinetis?"));
         html = await TungguSelesai(alamat);
@@ -119,7 +126,8 @@ public sealed partial class UjiHalamanTanya : IDisposable
         using var dok = JsonDocument.Parse(layanan.Jaringan.Permintaan[^1].Isi!);
         var pesan = dok.RootElement.GetProperty("messages");
         Assert.Equal("Apa itu gaya gesek <statis>?", pesan[1].GetProperty("content").GetString());
-        Assert.Equal("Kalau kinetis?", pesan[3].GetProperty("content").GetString());
+        Assert.StartsWith("[[2026-10-gaya-gesek]] (Fisika)", pesan[5].GetProperty("content").GetString());   // catatan yang sudah dibaca ikut
+        Assert.Equal("Kalau kinetis?", pesan[pesan.GetArrayLength() - 1].GetProperty("content").GetString());
     }
 
     [Fact]
@@ -131,8 +139,11 @@ public sealed partial class UjiHalamanTanya : IDisposable
 
         var html = await Html(alamat);
         Assert.Contains("<meta http-equiv=\"refresh\" content=\"2\">", html);
-        Assert.Contains("<li class=\"sedang\">Berpikir… · 0 detik</li>", html);
-        Assert.DoesNotContain("name=\"pertanyaan\"", html);   // pertanyaan berikutnya menunggu jawaban ini
+        Assert.Contains("<div class=\"gelembung ai\"><ol class=\"tahap\"><li class=\"sedang\">Berpikir… · 0 detik</li></ol></div>", html);
+        Assert.DoesNotContain("name=\"pertanyaan\"", html);   // pesan berikutnya menunggu jawaban ini
+        Assert.Contains("<form class=\"kirim\" action=", html);   // tidak menempel selama dimuat ulang
+        Assert.Contains("<textarea id=\"akhir\" rows=\"2\" disabled", html);
+        Assert.Contains("<button class=\"tombol\" type=\"submit\">Batalkan</button>", html);   // di tempat tombol Kirim
 
         var obrolan = alamat[..alamat.IndexOf('#')];
         await Html(obrolan, Post(("aksi", "batal")));
@@ -162,9 +173,9 @@ public sealed partial class UjiHalamanTanya : IDisposable
     {
         PasangKunci();
         var form = await Html("kevin://belajar?tanya");
-        Assert.Contains("Tulis dulu pertanyaannya.",
+        Assert.Contains("Tulis dulu pesannya.",
             await Html("kevin://belajar?tanya", Post(("aksi", "tanya"), ("token", Ambil(Token(), form)), ("pertanyaan", "  \n "))));
-        Assert.Contains("Pertanyaannya terlalu panjang",
+        Assert.Contains("Pesannya terlalu panjang",
             await Html("kevin://belajar?tanya", Post(("aksi", "tanya"), ("token", Ambil(Token(), form)), ("pertanyaan", new string('x', 4001)))));
         Assert.Empty(layanan.Jaringan.Permintaan);
     }
@@ -183,16 +194,53 @@ public sealed partial class UjiHalamanTanya : IDisposable
         PasangKunci();
         Skenario(JaringanPalsu.Tool("Sebelum bergerak."));
         const string Alamat = "kevin://belajar?tanya&m=fisika&c=2026-10-gaya-gesek";
-        Assert.Contains("Tentang catatan <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a> (Fisika)", await Html(Alamat));
+        var mulai = await Html(Alamat);
+        Assert.Contains("Tentang catatan <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a> (Fisika)", mulai);
+        Assert.Contains("Kita bahas catatan <strong>Gaya gesek</strong>, ya.", mulai);
+        Assert.Contains("<form class=\"saran\" action=\"kevin://belajar?tanya&amp;m=fisika&amp;c=2026-10-gaya-gesek\" method=\"post\">", mulai);
+        const string Saran = "<button class=\"tombol\" type=\"submit\" name=\"pertanyaan\" value=\"Uji pemahamanku\">Uji pemahamanku</button>";
+        Assert.Contains(Saran, mulai);
 
-        var html = await TungguSelesai(await Kirim(Alamat, "Kapan statis bekerja?"));
+        // Tombol saran: tulisannya jadi pesan pertama, dengan token formulirnya sendiri.
+        var hasil = await Html(Alamat, Post(("aksi", "tanya"), ("token", Ambil(Token(), mulai)), ("pertanyaan", "Uji pemahamanku")));
+        var html = await TungguSelesai(Ambil(Pindah(), hasil));
 
         Assert.Contains("Tentang catatan <a href=\"kevin://belajar?m=fisika&amp;c=2026-10-gaya-gesek\">Gaya gesek</a>", html);
-        Assert.Contains("Catatan yang dibaca: <a", html);
+        Assert.Contains("<p class=\"gelembung siswa\">Uji pemahamanku</p>", html);
+        Assert.DoesNotContain("Catatan yang dibaca", html);   // catatan terlampir sudah tertulis di atas
+        Assert.DoesNotContain("class=\"saran\"", html);
         using var dok = JsonDocument.Parse(Assert.Single(layanan.Jaringan.Permintaan).Isi!);
         var pertanyaan = dok.RootElement.GetProperty("messages")[1].GetProperty("content").GetString()!;
         Assert.StartsWith("(Aku sedang membuka catatan [[2026-10-gaya-gesek]] (Fisika). Isinya:\n<<<CATATAN\n# Gaya gesek", pertanyaan);
-        Assert.EndsWith("Kapan statis bekerja?", pertanyaan);
+        Assert.EndsWith("Uji pemahamanku", pertanyaan);
+    }
+
+    [Fact]
+    public async Task SaranMatiTanpaKunci()
+    {
+        var html = await Html("kevin://belajar?tanya&m=fisika&c=2026-10-gaya-gesek");
+        Assert.Contains("value=\"Uji pemahamanku\" disabled>", html);
+    }
+
+    [Fact]
+    public async Task ObrolanPanjangMintaObrolanBaru()
+    {
+        PasangKunci();
+        Skenario(JaringanPalsu.Tool("Ya."));
+        var alamat = await Kirim("kevin://belajar?tanya", "Pesan 1");
+        var obrolan = alamat[..alamat.IndexOf('#')];
+        await TungguSelesai(alamat);
+        for (var i = 2; i <= Penanya.MaksGiliran; i++)
+        {
+            await Kirim(obrolan, $"Pesan {i}");
+            await TungguSelesai(alamat);
+        }
+
+        var html = await Html(alamat);
+
+        Assert.Contains("Obrolan ini sudah panjang.", html);
+        Assert.DoesNotContain("name=\"pertanyaan\"", html);
+        Assert.Contains("href=\"kevin://belajar?tanya\">Obrolan baru</a>", html);
     }
 
     [Fact]
@@ -231,11 +279,13 @@ public sealed partial class UjiHalamanTanya : IDisposable
         var html = await TungguSelesai(await Kirim("kevin://belajar?tanya&m=fisika&c=2026-10-gaya-gesek", "What is static friction?"));
 
         Assert.Contains("tokens in (1,800 cached), 100 out", html);
-        Assert.Contains("Notes read:", html);
+        Assert.Contains("this chat cost", html);
         Assert.Contains("About the note", html);
+        Assert.Contains("Let's go through the note <strong>Gaya gesek</strong>.", html);
+        Assert.Contains(">Send</button>", html);
         foreach (var kata in UjiHalaman.KataIndonesia)
             Assert.False(html.Contains(kata, StringComparison.Ordinal), $"\"{kata}\"");
         using var dok = JsonDocument.Parse(layanan.Jaringan.Permintaan[0].Isi!);
-        Assert.StartsWith("You are a study assistant", dok.RootElement.GetProperty("messages")[0].GetProperty("content").GetString());
+        Assert.StartsWith("You are a private tutor", dok.RootElement.GetProperty("messages")[0].GetProperty("content").GetString());
     }
 }

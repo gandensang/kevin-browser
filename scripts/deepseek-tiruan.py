@@ -6,8 +6,11 @@ kunci API dan tanpa biaya. Hanya untuk build Debug:
     KEVIN_BROWSER_UJI_AI=http://127.0.0.1:8765 dotnet run --project Linux -- kevin://belajar
 
 Kunci API apa saja diterima (simpan dulu di kevin://belajar?ai, mis.
-sk-tiruan-1234567890). Tanya-jawab: pertanyaan → cari_catatan(kata terpanjang)
-→ baca_catatan(hasil pertama) → jawaban Markdown. Serap materi: dua catatan
+sk-tiruan-1234567890). Tanya-jawab: pesan pertama → cari_catatan(kata
+terpanjang) → baca_catatan(hasil pertama) → jawaban pendek bergaya guru yang
+diakhiri pertanyaan. Pesan berikutnya dijawab langsung kalau obrolannya sudah
+membawa catatan yang dibaca. Pesan yang memuat "tabel" dijawab panjang dengan
+tabel dan daftar, untuk melihat tata letaknya. Serap materi: dua catatan
 contoh. Setiap jawaban ditunda TUNDA_DETIK (bawaan 1,5) supaya halaman
 kemajuan dan tombol Batalkan bisa dicoba. Ringkasan tiap permintaan ditulis
 ke stderr.
@@ -33,12 +36,31 @@ def panggil(id, nama, argumen):
             'tool_calls': [{'id': id, 'type': 'function', 'function': {'name': nama, 'arguments': json.dumps(argumen)}}]}
 
 
+def jawaban(nama, tanya):
+    if 'tabel' in tanya.lower():
+        return (f'Ini rangkuman panjang dari [[{nama}]]:\n\n- **Butir pertama** dari catatan itu.\n- **Butir kedua**.\n\n'
+                '| Kolom | Isi |\n|---|---|\n| a | satu |\n| b | dua |\n\n'
+                '### Langkah\n\n1. Langkah satu.\n2. Langkah dua.\n\nMau kita bahas yang mana dulu?')
+    return (f'Bayangkan kamu sedang naik angkot yang tiba-tiba ngerem: badanmu terdorong ke depan. '
+            f'Itulah gagasan utama di catatanmu [[{nama}]], yang disebut **istilah penting** (jawaban tiruan).\n\n'
+            'Coba tebak: kalau angkotnya tiba-tiba ngegas, badanmu terdorong ke mana?')
+
+
 def jawab_tanya(pesan, boleh_tool):
     akhir = pesan[-1]
     if not boleh_tool:
         return {'role': 'assistant', 'content': 'Jawaban sesudah batas putaran tool.'}
     if akhir['role'] == 'user':
-        kata = re.findall(r'\w+', akhir['content'].split('\n')[-1])
+        tanya = akhir['content'].split('\n')[-1]
+        dibaca = [p['content'] for p in pesan if p['role'] == 'tool' and p['content'].startswith('[[')]
+        if dibaca:
+            nama = re.match(r'\[\[([^\]]+)\]\]', dibaca[-1]).group(1)
+            if 'tabel' in tanya.lower():
+                return {'role': 'assistant', 'content': jawaban(nama, tanya)}
+            return {'role': 'assistant', 'content':
+                    f'**Betul!** Badanmu "ingin" tetap diam, jadi seperti tertinggal (tanggapan tiruan atas "{tanya}").\n\n'
+                    'Sekarang, mana yang lebih susah dihentikan: sepeda atau truk yang sama cepatnya?'}
+        kata = re.findall(r'\w+', tanya)
         return panggil('call_1', 'cari_catatan', {'kata': max(kata, key=len) if kata else 'catatan'})
     if akhir['role'] == 'tool':
         tool = pesan[-2]['tool_calls'][0]['function']['name']
@@ -47,12 +69,10 @@ def jawab_tanya(pesan, boleh_tool):
             hasil = json.loads(isi[isi.index('['):]) if '[' in isi else []
             if hasil:
                 return panggil('call_2', 'baca_catatan', {'mapel': hasil[0]['mapel'], 'nama': hasil[0]['nama']})
-            return {'role': 'assistant', 'content': 'Catatanmu belum membahas ini.\n\nPenjelasan umum (bukan dari catatanmu): …'}
+            return {'role': 'assistant', 'content': 'Catatanmu belum membahas ini.\n\nPenjelasan umum (bukan dari catatanmu): …\n\nSudah pernah dengar istilah ini di kelas?'}
         nama = re.match(r'\[\[([^\]]+)\]\]', akhir['content']).group(1)
-        return {'role': 'assistant', 'content':
-                f'Menurut [[{nama}]]:\n\n- **Butir pertama** dari catatan itu.\n- **Butir kedua**.\n\n'
-                '| Kolom | Isi |\n|---|---|\n| a | satu |\n| b | dua |\n\n'
-                '## Coba sendiri\n\nSampai mana kamu sudah mengerjakannya?'}
+        tanya = next(p['content'] for p in reversed(pesan) if p['role'] == 'user').split('\n')[-1]
+        return {'role': 'assistant', 'content': jawaban(nama, tanya)}
     return {'role': 'assistant', 'content': 'Halo.'}
 
 

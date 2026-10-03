@@ -89,6 +89,7 @@ public sealed class UjiPenanya : IDisposable
         Assert.Contains("\"mapel\":\"fisika\",\"nama\":\"2026-10-gaya-gesek\",\"judul\":\"Gaya gesek\"", hasilCari);
         Assert.DoesNotContain("2026-10-sel", hasilCari);
         Assert.StartsWith("[[2026-10-gaya-gesek]] (Fisika)\n\n# Gaya gesek\n", Pesan(2)[5].GetProperty("content").GetString());
+        Assert.Equal(["assistant", "tool", "assistant", "tool"], g.Kerja.Select(p => p.Peran));   // disimpan untuk pesan berikutnya
     }
 
     [Fact]
@@ -99,6 +100,9 @@ public sealed class UjiPenanya : IDisposable
 
         var badan = Badan(0);
         var sistem = badan.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        Assert.Contains("Mengobrol, bukan menulis artikel.", sistem);
+        Assert.Contains("Akhiri penjelasanmu dengan satu pertanyaan pendek", sistem);
+        Assert.Contains("Siswa: apa itu inersia?", sistem);   // contoh percakapan
         Assert.Contains("cari dulu di catatan siswa dengan cari_catatan", sistem);
         Assert.Contains("(bukan dari catatanmu)", sistem);
         Assert.Contains("ulangan atau ujian", sistem);
@@ -127,39 +131,76 @@ public sealed class UjiPenanya : IDisposable
     }
 
     [Fact]
-    public async Task PertanyaanLanjutanMembawaTanyaJawabSebelumnya()
+    public async Task PesanBerikutnyaMembawaObrolanDanCatatanYangDibaca()
     {
         Skenario(
-            JaringanPalsu.Tool(null, ("cari_catatan", """{"kata":"newton"}""")),
-            JaringanPalsu.Tool("F = m × a, lihat [[2026-09-newton]]."),
-            JaringanPalsu.Tool("Massa dalam kilogram."));
+            JaringanPalsu.Tool(null, ("baca_catatan", """{"mapel":"fisika","nama":"2026-09-newton"}""")),
+            JaringanPalsu.Tool("Coba tebak: kalau massanya dua kali lipat, gayanya?"),
+            JaringanPalsu.Tool("Betul, dua kali lipat juga."));
         var obrolan = penanya.Baru(null);
         await Tanya(obrolan, "Apa hukum Newton kedua?");
 
-        var g = await Tanya(obrolan, "Satuan massanya?");
+        var g = await Tanya(obrolan, "Dua kali lipat?");
 
-        Assert.Equal(("Massa dalam kilogram.", 1), (g.Jawaban, g.Putaran));
+        Assert.Equal(("Betul, dua kali lipat juga.", 1), (g.Jawaban, g.Putaran));
         Assert.Equal(2, obrolan.Keadaan.Giliran.Count);
         var pesan = Pesan(2);
-        Assert.Equal(4, pesan.GetArrayLength());   // hasil tool pertanyaan pertama tidak ikut
+        Assert.Equal(6, pesan.GetArrayLength());
         Assert.Equal(("user", "Apa hukum Newton kedua?"), PeranIsi(pesan[1]));
-        Assert.Equal(("assistant", "F = m × a, lihat [[2026-09-newton]]."), PeranIsi(pesan[2]));
-        Assert.Equal(("user", "Satuan massanya?"), PeranIsi(pesan[3]));
+        Assert.Equal("baca_catatan", pesan[2].GetProperty("tool_calls")[0].GetProperty("function").GetProperty("name").GetString());
+        Assert.Equal("tool", pesan[3].GetProperty("role").GetString());
+        Assert.Contains("F = m × a", pesan[3].GetProperty("content").GetString());   // tidak perlu dibaca ulang
+        Assert.Equal(("assistant", "Coba tebak: kalau massanya dua kali lipat, gayanya?"), PeranIsi(pesan[4]));
+        Assert.Equal(("user", "Dua kali lipat?"), PeranIsi(pesan[5]));
+        // Permintaan sebelumnya utuh di depan, jadi semuanya kena cache.
+        var sebelumnya = Pesan(1);
+        Assert.Equal(4, sebelumnya.GetArrayLength());
+        for (var i = 0; i < 4; i++)
+            Assert.Equal(sebelumnya[i].GetRawText(), pesan[i].GetRawText());
     }
 
     [Fact]
-    public async Task RiwayatDibatasi()
+    public async Task RiwayatDibatasiHurufnya()
     {
         var n = 0;
-        jaringan.Jawab = _ => JaringanPalsu.Tool($"Jawaban {++n}.");
+        var panjang = new string('x', 9_000);
+        jaringan.Jawab = _ => JaringanPalsu.Tool($"Jawaban {++n}. {panjang}");
         var obrolan = penanya.Baru(null);
-        for (var i = 1; i <= 8; i++)
+        for (var i = 1; i <= 6; i++)
             await Tanya(obrolan, $"Pertanyaan {i}");
 
-        var pesan = Pesan(7);
-        Assert.Equal(1 + 2 * Penanya.MaksRiwayat + 1, pesan.GetArrayLength());
+        // Tiap giliran ±9.000 huruf: empat yang terbaru muat dalam 40.000.
+        var pesan = Pesan(5);
+        Assert.Equal(1 + 2 * 4 + 1, pesan.GetArrayLength());
         Assert.Equal(("user", "Pertanyaan 2"), PeranIsi(pesan[1]));
-        Assert.Equal(("user", "Pertanyaan 8"), PeranIsi(pesan[pesan.GetArrayLength() - 1]));
+        Assert.Equal(("user", "Pertanyaan 6"), PeranIsi(pesan[pesan.GetArrayLength() - 1]));
+    }
+
+    [Fact]
+    public async Task GiliranTerakhirSelaluIkut()
+    {
+        jaringan.Jawab = _ => JaringanPalsu.Tool(new string('x', Penanya.MaksHurufRiwayat + 1));
+        var obrolan = penanya.Baru(null);
+        await Tanya(obrolan, "Pertanyaan 1");
+        await Tanya(obrolan, "Pertanyaan 2");
+        await Tanya(obrolan, "Pertanyaan 3");
+
+        var pesan = Pesan(2);
+        Assert.Equal(4, pesan.GetArrayLength());
+        Assert.Equal(("user", "Pertanyaan 2"), PeranIsi(pesan[1]));
+    }
+
+    [Fact]
+    public async Task ObrolanBerhentiSesudahMaksGiliran()
+    {
+        jaringan.Jawab = _ => JaringanPalsu.Tool("Ya.");
+        var obrolan = penanya.Baru(null);
+        for (var i = 1; i <= Penanya.MaksGiliran; i++)
+            await Tanya(obrolan, $"Pesan {i}");
+
+        Assert.False(penanya.Tanya(obrolan, "Satu lagi", T));
+        Assert.Equal(Penanya.MaksGiliran, obrolan.Keadaan.Giliran.Count);
+        Assert.False(obrolan.Keadaan.Bekerja);
     }
 
     [Fact]
@@ -170,7 +211,7 @@ public sealed class UjiPenanya : IDisposable
 
         var g = await Tanya(obrolan, "Jelaskan lebih sederhana.");
 
-        Assert.Equal(["2026-10-gaya-gesek"], g.Dibaca.Select(c => c.Nama));
+        Assert.Empty(g.Dibaca);   // halaman obrolan sudah menyebut catatan ini di atas
         var pertama = Pesan(0)[1].GetProperty("content").GetString()!;
         Assert.Equal("""
             (Aku sedang membuka catatan [[2026-10-gaya-gesek]] (Fisika). Isinya:

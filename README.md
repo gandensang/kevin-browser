@@ -100,9 +100,10 @@ you don't have to.
   come, in a form a weak laptop can carry.
 - **A study assistant.** The first steps are already here: Learn
   (`kevin://belajar`), a notebook of plain Markdown files that can turn
-  study material into notes and answer questions from them, with your own
-  DeepSeek API key. For homework it is told to help step by step instead of
-  handing over answers. More will follow, as long as it costs the laptop
+  study material into notes and go through them with you in a chat, like a
+  patient tutor, with your own DeepSeek API key. It explains a little at a
+  time and asks questions back; for homework it is told to help step by step
+  instead of handing over answers. More will follow, as long as it costs the laptop
   next to nothing.
 
 ## What makes it light
@@ -209,7 +210,8 @@ Markdown files in `~/kevin-catatan`, one folder per subject, which you can
 read, search, and write there or open in any text editor. With your own
 DeepSeek API key, it can also turn study material (a PDF, a text file, or
 pasted text) into notes, with the estimated cost shown before anything is
-sent, and answer questions from your notes, naming the notes it used. The
+sent, and teach from your notes in a chat: a little at a time, with
+questions back to check you understood, naming the notes it used. The
 pages about
 the browser itself (Story, Pros & Cons, Guide, Plans, About Us) sit at the
 bottom of every page, and all of them work offline.
