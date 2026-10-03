@@ -12,7 +12,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Versi paket .deb (scripts/buat-deb.sh). Naikkan setiap membuat paket
          baru: apt hanya memperbarui ke versi yang lebih tinggi. -->
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
   </PropertyGroup>
 
 </Project>
