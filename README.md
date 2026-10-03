@@ -1,229 +1,204 @@
 # Kevin Browser
 
-Peramban web ringan untuk Linux, untuk laptop lama dengan RAM kecil. Tetap
-bisa membuka web modern (YouTube, Google Docs, WhatsApp Web, situs berita),
-tetapi dibuat sehemat mungkin: tab tidur, pemblokir iklan dan pelacak, dan
-video yang tidak berputar sendiri. Mesin pencari bawaannya Google.
+**A web browser for the laptops the modern web left behind.**
 
-    kevin-browser                      # jendela baru, di beranda
-    kevin-browser detik.com            # langsung membuka alamat
-    kevin-browser "cara membuat kue"   # dicari di Google, seperti di kotak alamat
+Kevin needed a laptop. His family didn't have the money for one.
 
-Dibuat dengan C#/.NET 10, GTK4, dan WebKitGTK 6.0 (WebKit, mesin yang juga
-dipakai Safari), lewat binding [GirCore](https://github.com/gircore/gir.core).
-Hasilnya satu berkas program ±4,9 MB yang tidak butuh .NET di laptop tujuan.
+So they bought a very cheap, old second-hand laptop with little RAM, and put
+Linux on it to keep it light. Linux ran light. The browsers didn't: most
+browsers today are hungry for memory, and that laptop had little to spare.
 
-*[In English](#in-english)*
+So Kevin, then in his first year of senior high school, came up with an idea:
+build his own browser.
 
-## Kenapa proyek ini lahir
+**This is that browser.** Kevin Browser opens the modern web (YouTube, Google
+Docs, WhatsApp Web, news sites) on a laptop like Kevin's. It puts tabs to
+sleep, blocks ads and trackers, refuses to let videos play on their own, and
+ships as a single 4.9 MB file for Linux.
 
-Kevin Browser lahir dari keterbatasan.
+    kevin-browser                       # opens the home page
+    kevin-browser detik.com             # opens an address
+    kevin-browser "how to bake a cake"  # searches Google, just like the address bar
 
-Ini proyek keluarga. Kevin adalah nama anak kami. Saat browser ini dibuat,
-tahun 2026, ia duduk di kelas 1 SMA. Kevin butuh laptop, tapi uangnya tidak
-ada. Akhirnya kami membeli laptop bekas jadul yang harganya sangat murah,
-lalu memasang Linux di dalamnya supaya ringan.
+## In the family's own words
 
-Linux-nya memang ringan. Kendalanya ada di browser: rata-rata browser
-sekarang rakus memori. Dari situ Kevin mencetuskan ide untuk membuat
-browser sendiri. Maka lahirlah Kevin Browser: browser yang tetap bisa
-membuka web modern, tapi dibuat sehemat mungkin untuk laptop seperti milik
-Kevin.
+> Kevin Browser is our family project. Kevin is my son's name. When this
+> browser was made, in 2026, he was in his first year of senior high school.
+>
+> Kevin needed a laptop, but we didn't have the money. In the end we bought a
+> very cheap, old second-hand laptop, and installed Linux on it to keep it
+> light. Linux was indeed light. The problem was the browser: most browsers
+> today are hungry for memory.
+>
+> That is where Kevin came up with the idea of making his own browser. And so
+> Kevin Browser was born: a browser that can still open the modern web, but
+> is made as light as possible for laptops like Kevin's.
+>
+> If you also use an old laptop, this browser is for you too.
 
-Kalau Anda juga memakai laptop lama, browser ini untuk Anda juga. Dan
-kalau Anda programmer, proyek ini sangat terbuka untuk dikembangkan
-bersama: mencoba di laptop lain, melapor, memperbaiki, atau membangun fitur
-baru. Lihat [Ikut mengembangkan](#ikut-mengembangkan).
+## This is where you come in
 
-## Yang membuatnya hemat
+Kevin Browser is small, young, and open source. It won't change the whole
+web. But it can change what an old laptop is able to do, and in many homes an
+old laptop is the only laptop there is.
 
-- **Tab tidur.** Hanya 2–4 tab yang hidup sekaligus, tergantung RAM laptop
-  (2 tab untuk RAM 2 GB). Tab yang paling lama tidak dilihat ditidurkan:
-  halamannya dibuang dari memori, alamat dan riwayat mundur/majunya
-  disimpan. Tab latar yang 5 menit tidak dilihat juga ditidurkan, dan semua
-  tab latar langsung ditidurkan kalau RAM laptop tinggal di bawah 15%.
-  WhatsApp Web, tab yang sedang memutar suara, tab yang memakai mikrofon
-  atau kamera, dan tab berisi ketikan formulir tidak ikut ditidurkan.
-- **Tab latar tidak dimuat** sebelum dilihat, dan tab baru yang kosong
-  tidak punya proses web sama sekali.
-- **Iklan dan pelacak diblokir** (EasyList, EasyPrivacy, dan ABPindo untuk
-  iklan situs Indonesia). Di situs berita, iklan memakan lebih banyak memori
-  daripada beritanya (lihat angkanya di bawah). Parameter pelacak di alamat
-  (`utm_…`, `fbclid`, `gclid`, …) ikut dibuang.
-- **Video tidak berputar sendiri**, termasuk di YouTube (WhatsApp Web
-  dikecualikan, supaya GIF tetap bergerak). Di sebuah halaman video
-  detik.com, memori seluruh browser ±820 MB lebih kecil dan CPU ±60% satu
-  inti lebih rendah daripada saat videonya berputar sendiri.
-- **YouTube versi mobile.** Halaman tontonnya separuh memori versi desktop.
-  Musik tetap berbunyi saat pindah tab. Versi desktop tetap bisa dipilih.
-- **Video diurai kartu grafis kalau bisa** (H.264 lewat VA-API), dan paling
-  tinggi 720p.
-- **Batas memori per proses WebKit** dan heap JavaScript yang lebih sering
-  dibersihkan.
-- **Dua kebocoran proses WebKitGTK 2.52 ditambal.** Tanpa tambalan ini,
-  setiap situs yang pernah dibuka meninggalkan prosesnya di memori.
-- **Satu berkas NativeAOT**: proses tampilan tanpa JIT, ±20 MB lebih kecil.
+It doesn't need to be perfect. It needs people who believe an old laptop
+still deserves a good web.
 
-Selain itu: tab yang terbuka dibuka lagi saat browser dibuka berikutnya
-(juga setelah laptop mati mendadak), Ctrl+Shift+T membuka lagi tab yang
-baru ditutup, notifikasi WhatsApp Web, dan tampilan dalam bahasa Indonesia
-atau Inggris.
+You don't have to be a WebKit expert to help:
 
-## Angka
+- **Try it on an old laptop** and tell us what's slow or broken. Include your
+  specs (`inxi -Fxz`).
+- **Measure the sites you use** and share the numbers. Every memory claim in
+  this project is measured, never guessed.
+- **Bring an idea.** The top menu bar is deliberately kept almost empty: a
+  blank space reserved for whatever will make Kevin Browser truly its own.
+  Chess and an in-browser assistant are the first two ideas on the list.
+  Yours could be the third.
+- **Fix a bug, translate a page, or improve the docs.**
 
-Diukur di laptop pengembang (Intel HD 4600, RAM 8 GB): PSS seluruh proses
-browser ditambah memori grafis, 25 detik setelah halaman dibuka di profil
-kosong, rata-rata dua kali ukur dengan `scripts/ukur-halaman.sh`.
+Open an issue to talk it through, in English or Indonesian. When you're ready
+to write code, [CONTRIBUTING.md](CONTRIBUTING.md) explains how the project is
+built, its habits, and the WebKitGTK pitfalls we've already fallen into, so
+you don't have to.
 
-| Halaman | Dengan pemblokir (bawaan) | Tanpa pemblokir |
+## Roadmap
+
+- **An assistant that works inside the browser.** Agentic features: not just
+  answering questions, but helping get things done in the page you're on.
+  Its form is still being designed.
+- **Chess.** Chess is our children's hobby, so something chess-related is
+  coming. What form it takes is still open. Maybe that's where you come in.
+- **A Windows version.** The browser's logic already lives in a separate
+  library (`Inti/`) so it can be reused with WebView2.
+- **Less memory per page.** On heavy sites, WebKit's page processes are still
+  bigger than we'd like. Ideas welcome.
+
+## What makes it light
+
+- **Sleeping tabs.** Only 2–4 tabs stay awake at once, depending on the
+  laptop's RAM (2 on a 2 GB laptop). The tab you haven't looked at the longest
+  goes to sleep: its page is thrown out of memory, while its address and
+  back/forward history are kept. Background tabs left alone for 5 minutes
+  sleep too, and when the laptop is down to its last 15% of RAM, every
+  background tab sleeps right away. WhatsApp Web, tabs playing sound, tabs
+  using the microphone or camera, and tabs with unsent form input stay awake.
+- **Background tabs aren't loaded** until you open them, and an empty new tab
+  has no web process at all.
+- **Ads and trackers are blocked** with EasyList, EasyPrivacy, and ABPindo
+  (ads on Indonesian sites). On news sites, the ads take more memory than the
+  news itself (see the numbers below). Tracking parameters in addresses
+  (`utm_…`, `fbclid`, `gclid`, …) are removed too.
+- **Videos don't play by themselves**, YouTube included (WhatsApp Web is the
+  exception, so GIFs still move). On one detik.com video page, that saves
+  about 820 MB of memory and about 60% of a CPU core.
+- **YouTube's mobile version**, which uses half the memory of the desktop
+  version. Music keeps playing when you switch tabs, and the desktop version
+  is still one setting away.
+- **Hardware video decoding** (H.264 through VA-API) when the graphics card
+  supports it, and videos capped at 720p.
+- **A memory limit per WebKit process**, and a JavaScript heap that is cleaned
+  up more often.
+- **Two process leaks in WebKitGTK 2.52 are patched.** Without these patches,
+  every site you visit leaves its process behind in memory.
+- **Ahead-of-time compiled (NativeAOT)**: no JIT in the interface process,
+  which makes it about 20 MB smaller.
+
+It also reopens the tabs you had open the next time you start it (even after
+a sudden shutdown), brings back a closed tab with Ctrl+Shift+T, shows
+WhatsApp Web notifications, and speaks Indonesian or English.
+
+## Numbers
+
+Measured on the developer's laptop (Intel HD 4600, 8 GB RAM): the memory of
+every browser process (PSS) plus graphics memory, 25 seconds after opening the
+page in a fresh profile, averaged over two runs of `scripts/ukur-halaman.sh`.
+
+| Page | Ads blocked (default) | No blocker |
 |---|---|---|
-| Beranda, baru dibuka | 313 MB | 310 MB |
+| Home page, just opened | 313 MB | 310 MB |
 | google.com | 408 MB | 400 MB |
 | detik.com | 497 MB | 1150 MB |
 | kompas.com | 578 MB | 899 MB |
 | tribunnews.com | 433 MB | 674 MB |
-| Halaman tonton YouTube (versi mobile) | 537 MB | 542 MB |
+| YouTube watch page (mobile version) | 537 MB | 542 MB |
 
-YouTube versi desktop, diukur dengan cara yang sama: 1067 MB.
+The desktop version of YouTube, measured the same way: 1067 MB.
 
-Harganya juga ditulis terang-terangan di halaman *Kelebihan & Kekurangan*
-di dalam browser: panggilan video belum bisa (WebKitGTK dari Ubuntu/Mint
-dibangun tanpa WebRTC), tab yang tidur harus dimuat ulang saat dibuka, dan
-video harus diklik dulu.
+We're honest about the price, too: video calls don't work yet (the WebKitGTK
+shipped by Ubuntu and Mint is built without WebRTC), sleeping tabs have to
+reload when you open them, and videos need a click. The full list lives on the
+*Pros & cons* page inside the browser.
 
-## Memasang
+## Install
 
-### Lewat apt (disarankan)
-
-Untuk Linux Mint 22 atau Ubuntu 24.04 ke atas, 64-bit:
+On Linux Mint 22, Ubuntu 24.04, or later (64-bit):
 
     sudo wget -qO /usr/share/keyrings/kevin-browser.gpg https://gandensang.github.io/kevin-browser-apt/kevin-browser.gpg
     sudo wget -qO /etc/apt/sources.list.d/kevin-browser.sources https://gandensang.github.io/kevin-browser-apt/kevin-browser.sources
     sudo apt update
     sudo apt install kevin-browser
 
-apt ikut memasang WebKitGTK 6.0, GTK4, dan codec video kalau belum ada.
-Setelah itu Kevin Browser muncul di menu. Versi baru datang lewat Update
-Manager, bersama pembaruan lain. Melepasnya: `sudo apt purge kevin-browser`.
+apt also installs WebKitGTK 6.0, GTK4, and the video codecs if they're
+missing. New versions arrive through the Update Manager. To remove it:
+`sudo apt purge kevin-browser`.
 
-Paketnya disajikan dari repo
+The packages are served from
 [gandensang/kevin-browser-apt](https://github.com/gandensang/kevin-browser-apt)
-lewat GitHub Pages, dengan indeks yang ditandatangani. Paket itu dibangun
-dari kode di repo ini.
+with signed indexes, and built from the code in this repository.
 
-### Dari berkas .deb
+**Just one file.** You can also copy the single program file
+(`Linux/bin/Release/net10.0/linux-x64/publish/kevin-browser`, from
+`dotnet publish Linux -c Release`) to any 64-bit Linux with glibc 2.34 or
+newer and WebKitGTK 6.0 (`sudo apt install libwebkitgtk-6.0-4`). Flash drives
+formatted FAT32/exFAT drop the execute permission, so run
+`chmod +x kevin-browser` after copying.
 
-Buat paketnya dengan `scripts/buat-deb.sh` (butuh .NET 10 SDK), salin
-`dist/kevin-browser_VERSI_amd64.deb` ke laptop tujuan, lalu:
+## Build from source
 
-    sudo apt install ./kevin-browser_VERSI_amd64.deb
-
-Paket ini juga memasang alamat repo APT di atas beserta kuncinya, jadi
-versi berikutnya datang lewat Update Manager.
-
-### Satu berkas saja
-
-Yang dibawa cukup `Linux/bin/Release/net10.0/linux-x64/publish/kevin-browser`
-hasil `dotnet publish Linux -c Release`. Laptop tujuan butuh Linux 64-bit
-dengan glibc 2.34 atau lebih baru, dan pustaka WebKitGTK 6.0
-(`sudo apt install libwebkitgtk-6.0-4`, ikut membawa GTK4 dan GStreamer).
-Kalau video tidak mau diputar, pasang codec (`sudo apt install
-mint-meta-codecs`); supaya video diurai kartu grafis, pasang
-`va-driver-all`. Flashdisk FAT32/exFAT menghilangkan izin eksekusi, jadi
-setelah disalin jalankan `chmod +x kevin-browser`.
-
-Kevin Browser hanya berjalan satu instans: membukanya lagi menambah tab di
-jendela yang sudah ada.
-
-## Memakai
-
-Saat dibuka, Kevin Browser menampilkan berandanya sendiri (`kevin://beranda`)
-dengan kotak cari Google dan bookmark. Menu atas hanya berisi Beranda,
-Pengaturan, dan tempat untuk fitur yang akan datang ("Segera hadir").
-Halaman tentang browser ini (Kisah, Kelebihan & Kekurangan, Panduan,
-Rencana, Tentang Kami) ada di bagian bawah setiap halaman. Semuanya
-tertanam di dalam program, jadi bisa dibuka tanpa internet.
-
-Kotak alamat menerima alamat maupun kata kunci: `detik.com` dibuka
-langsung, `cara membuat kue` dicari di Google.
-
-| Tombol | Aksi |
-|---|---|
-| Ctrl+L, Alt+D, F6 | ke kotak alamat |
-| Ctrl+T / Ctrl+W | tab baru / tutup tab |
-| Ctrl+Shift+T | buka lagi tab yang baru ditutup |
-| Ctrl+Tab / Ctrl+Shift+Tab | tab berikut / sebelumnya |
-| Alt+Kiri / Alt+Kanan | mundur / maju |
-| Alt+Home | beranda |
-| Ctrl+H | riwayat |
-| Ctrl+F | cari di halaman |
-| Ctrl+D / Ctrl+Shift+O | simpan bookmark / kelola bookmark |
-| Ctrl+Shift+Delete | hapus data penjelajahan |
-| F5 / Shift+F5 | muat ulang / muat ulang tanpa cache |
-| Ctrl+Plus / Ctrl+Minus / Ctrl+0 | perbesar / perkecil / ukuran asli |
-| Ctrl+P / F11 | cetak / layar penuh |
-| Klik tengah atau Ctrl+klik tautan | buka di tab latar |
-
-Panduan lengkapnya ada di dalam browser (`kevin://panduan`). Semua data
-pemakai (riwayat, bookmark, cookie, daftar tab, pilihan) disimpan di
-`~/.local/share/kevin-browser/`, cache di `~/.cache/kevin-browser/`, dan
-bisa dihapus dari `kevin://pengaturan`. Kevin Browser sendiri tidak
-mengirim apa pun ke server mana pun; selain situs yang Anda buka, yang
-diunduhnya hanya daftar pemblokir, seminggu sekali.
-
-## Rencana
-
-Kevin Browser masih muda. Menu atas sengaja dikosongkan untuk fitur-fitur
-khusus, yang bentuknya masih dipikirkan:
-
-- **Fungsi agentik.** Asisten AI yang bisa diajak bekerja di dalam browser,
-  bukan sekadar menjawab pertanyaan.
-- **Catur.** Catur adalah hobi anak-anak kami. Akan ada sesuatu yang
-  berhubungan dengan catur.
-- **Versi Windows.** Logika browser sudah dipisahkan di `Inti/` supaya bisa
-  dipakai ulang untuk aplikasi Windows (WinForms + WebView2).
-
-Punya ide, atau ingin ikut membangun salah satunya? Buka Issue untuk
-berdiskusi.
-
-## Ikut mengembangkan
-
-Kontribusi dalam bentuk apa pun disambut: mencoba di laptop lama dan
-melaporkan hasilnya, memperbaiki bug, mengukur memori, menerjemahkan, atau
-mengerjakan fitur di bagian Rencana. Mulai dari
-[CONTRIBUTING.md](CONTRIBUTING.md): cara membangun, struktur kode,
-kebiasaan proyek ini, dan jebakan WebKitGTK yang sudah pernah ditemui.
-
-Singkatnya, dengan .NET 10 SDK dan `libwebkitgtk-6.0-4` terpasang:
+You need the .NET 10 SDK and, to run it, GTK4 and WebKitGTK 6.0.
 
     dotnet build
     dotnet test Uji
-    dotnet run --project Linux -- https://contoh.com
+    dotnet run --project Linux -- https://example.com
+    dotnet publish Linux -c Release     # the single NativeAOT file
 
-Langkah merilis versi baru ke repo APT ada di [RILIS.md](RILIS.md).
+It's written in C# with GTK4 and WebKitGTK 6.0 (WebKit, the engine Safari also
+uses), through the [GirCore](https://github.com/gircore/gir.core) bindings.
+The code speaks Indonesian (names, comments, commit messages), because it
+started as a family project in Indonesia. Don't let that stop you; see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Lisensi
+## A quick tour
 
-[MIT](LICENSE). Bebas dipakai, diubah, dan dibagikan, termasuk untuk
-membuat browser Anda sendiri.
+The home page (`kevin://beranda`) has a Google search box and your bookmarks.
+The top menu holds just Home, Settings, and a spot for what's coming next.
+The pages about the browser itself (Story, Pros & Cons, Guide, Plans, About
+Us) sit at the bottom of every page, and all of them work offline.
 
-## In English
+| Keys | Action |
+|---|---|
+| Ctrl+L | address bar |
+| Ctrl+T / Ctrl+W | new tab / close tab |
+| Ctrl+Shift+T | reopen the tab you just closed |
+| Ctrl+Tab / Ctrl+Shift+Tab | next / previous tab |
+| Alt+Left / Alt+Right | back / forward |
+| Ctrl+H | history |
+| Ctrl+F | find on page |
+| Ctrl+D / Ctrl+Shift+O | bookmark / manage bookmarks |
+| Ctrl+Shift+Delete | clear browsing data |
+| Middle-click a link | open it in a background tab |
 
-Kevin Browser is a lightweight web browser for Linux, made for old laptops
-with little RAM. It was born out of limitation: a family bought a very
-cheap, old second-hand laptop for their son Kevin and installed Linux on
-it, but modern browsers were too hungry for memory. So Kevin came up with
-the idea of building his own.
+Your data (history, bookmarks, cookies, open tabs, settings) stays in
+`~/.local/share/kevin-browser/` and can be cleared from `kevin://pengaturan`.
+Kevin Browser itself sends nothing to any server: apart from the sites you
+open, the only thing it downloads is the block lists, once a week.
 
-It opens the modern web (YouTube, Google Docs, WhatsApp Web) while saving
-memory: sleeping tabs, an ad and tracker blocker, videos that don't play
-by themselves, the mobile version of YouTube, and hardware video decoding
-when available. It is written in C#/.NET 10 with GTK4 and WebKitGTK 6.0,
-and ships as a single 4.9 MB file. The interface is available in
-Indonesian and English.
+## License
 
-Install it on Linux Mint 22 / Ubuntu 24.04 or later with the apt commands
-in [Memasang](#memasang). Contributions are very welcome. Code identifiers,
-comments, and commit messages are in Indonesian, but issues and pull
-requests in English are fine. See [CONTRIBUTING.md](CONTRIBUTING.md).
-Licensed under [MIT](LICENSE).
+[MIT](LICENSE). Use it, change it, share it, even build your own browser on
+top of it.
+
+---
+
+*Made for one old laptop. Open to everyone.*
