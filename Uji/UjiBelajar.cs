@@ -95,7 +95,7 @@ public sealed partial class UjiBelajar : IDisposable
         Assert.Single(Regex.Matches(html, "Gerak Parabola</h"));   // judul tidak diulang di isi
         Assert.Contains("<p>Sumber: handout</p>", html);
         Assert.Contains("<h3>Rumus</h3>", html);
-        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan\">2026-09-kesalahan</a>", html);
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan\">Kesalahan umum</a>", html);
         Assert.Contains("<span class=\"putus\">tidak-ada</span>", html);
         Assert.Contains("href=\"kevin://belajar?m=fisika&amp;c=2026-09-parabola&amp;sunting\"", html);
         Assert.Contains("fisika/2026-09-parabola.md</code>", html);

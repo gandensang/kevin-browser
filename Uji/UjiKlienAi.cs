@@ -67,6 +67,64 @@ public sealed class UjiKlienAi
         Assert.Equal(0, (await Assert.ThrowsAsync<GalatAi>(() => Chat())).Kode);
     }
 
+    Task<JawabanTool> ChatTool(IReadOnlyList<PesanAi> pesan, IReadOnlyList<DefinisiTool> alat, bool bolehTool = true) =>
+        Klien.ChatTool(Alamat, Kunci, "deepseek-flash", pesan, alat, bolehTool, 2000, CancellationToken.None);
+
+    [Fact]
+    public async Task ChatToolMembacaPermintaanTool()
+    {
+        jaringan.Jawab = _ => JaringanPalsu.Tool("Kucari dulu.", ("cari_catatan", """{"kata":"gaya gesek"}"""), ("baca_catatan", """{"nama":"x"}"""));
+        var jawaban = await ChatTool([new("user", "tanya")], []);
+
+        Assert.Equal("Kucari dulu.", jawaban.Isi);
+        Assert.Equal([new PanggilTool("call_0_cari_catatan", "cari_catatan", """{"kata":"gaya gesek"}"""),
+            new PanggilTool("call_1_baca_catatan", "baca_catatan", """{"nama":"x"}""")], jawaban.Panggil);
+        Assert.Equal((900, 300, 50, "tool_calls"), (jawaban.TokenCache, jawaban.TokenBaru, jawaban.TokenKeluar, jawaban.AlasanBerhenti));
+    }
+
+    [Fact]
+    public async Task IsiPermintaanChatTool()
+    {
+        jaringan.Jawab = _ => JaringanPalsu.Tool("Jawaban.");
+        PesanAi[] pesan = [new("system", "petunjuk"), new("user", "tanya"),
+            new("assistant", null, [new PanggilTool("call_1", "cari_catatan", """{"kata":"x"}""")]),
+            new("tool", "[]", IdTool: "call_1")];
+        DefinisiTool[] alat = [new("cari_catatan", "Cari.", """{"type":"object","properties":{"kata":{"type":"string"}},"required":["kata"]}""")];
+
+        var jawaban = await ChatTool(pesan, alat, bolehTool: false);
+
+        Assert.Equal("Jawaban.", jawaban.Isi);
+        Assert.Empty(jawaban.Panggil);
+        using var dok = JsonDocument.Parse(Assert.Single(jaringan.Permintaan).Isi!);
+        var akar = dok.RootElement;
+        Assert.False(akar.GetProperty("stream").GetBoolean());
+        Assert.Equal("none", akar.GetProperty("tool_choice").GetString());
+        Assert.Equal("disabled", akar.GetProperty("thinking").GetProperty("type").GetString());
+        Assert.Equal(2000, akar.GetProperty("max_tokens").GetInt32());
+        Assert.False(akar.TryGetProperty("response_format", out _));
+        var fungsi = akar.GetProperty("tools")[0].GetProperty("function");
+        Assert.Equal(("cari_catatan", "Cari."), (fungsi.GetProperty("name").GetString(), fungsi.GetProperty("description").GetString()));
+        Assert.Equal("string", fungsi.GetProperty("parameters").GetProperty("properties").GetProperty("kata").GetProperty("type").GetString());
+        var m = akar.GetProperty("messages");
+        Assert.Equal(4, m.GetArrayLength());
+        Assert.Equal(JsonValueKind.Null, m[2].GetProperty("content").ValueKind);
+        var panggil = m[2].GetProperty("tool_calls")[0];
+        Assert.Equal(("call_1", "function"), (panggil.GetProperty("id").GetString(), panggil.GetProperty("type").GetString()));
+        Assert.Equal(("cari_catatan", """{"kata":"x"}"""),
+            (panggil.GetProperty("function").GetProperty("name").GetString(), panggil.GetProperty("function").GetProperty("arguments").GetString()));
+        Assert.Equal(("tool", "call_1", "[]"), (m[3].GetProperty("role").GetString(), m[3].GetProperty("tool_call_id").GetString(), m[3].GetProperty("content").GetString()));
+        Assert.False(m[1].TryGetProperty("tool_call_id", out _));
+    }
+
+    [Fact]
+    public async Task ChatToolGalat()
+    {
+        jaringan.Jawab = _ => JaringanPalsu.Galat(402, "Insufficient Balance");
+        Assert.Equal(402, (await Assert.ThrowsAsync<GalatAi>(() => ChatTool([new("user", "x")], []))).Kode);
+        jaringan.Jawab = _ => (200, ["""{"choices":[]}"""]);
+        Assert.Equal(0, (await Assert.ThrowsAsync<GalatAi>(() => ChatTool([new("user", "x")], []))).Kode);
+    }
+
     [Fact]
     public async Task SaldoDalamDolar()
     {

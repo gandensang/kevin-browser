@@ -205,6 +205,19 @@ public sealed class UjiBukuCatatan : IDisposable
     }
 
     [Fact]
+    public void CariSebagianKata()
+    {
+        Tulis("fisika/2026-09-parabola.md", "# Gerak Parabola\n\nJangkauan terjauh pada sudut 45°.\n");
+        Tulis("fisika/2026-08-newton.md", "# Hukum Newton\n\nGaya dan percepatan.\n");
+
+        Assert.Empty(buku.Cari("parabola sudut gaya"));
+        var hasil = buku.Cari("parabola sudut gaya", semuaKata: false);
+        Assert.Equal(["Gerak Parabola", "Hukum Newton"], hasil.Select(h => h.Catatan.Judul));   // dua kata cocok lebih dulu
+        Assert.Contains("Gaya dan percepatan", hasil[1].Cuplikan);
+        Assert.Empty(buku.Cari("kimia organik", semuaKata: false));
+    }
+
+    [Fact]
     public void CuplikanTidakMemotongKata()
     {
         Tulis("sejarah/panjang.md", "# Panjang\n\n" + string.Join(' ', Enumerable.Repeat("kata", 60)) + " proklamasi " + string.Join(' ', Enumerable.Repeat("lain", 60)));

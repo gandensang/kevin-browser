@@ -90,7 +90,13 @@ static class Mesin
         Bookmark = new DaftarBookmark(Path.Combine(folderData, "bookmark.tsv"));
         TabTerbuka = new TabTerbuka(Path.Combine(folderData, "tab.tsv"));
         Preferensi = new Preferensi(BerkasPreferensi(folderData));
-        var alat = new AlatSerap(new PengaturanAi(Path.Combine(folderData, BerkasAsisten)), new JaringanSoup(),
+        var alamatAi = PengaturanAi.AlamatDeepSeek;
+#if DEBUG
+        // Uji asisten AI tanpa kunci dan tanpa biaya: server tiruan DeepSeek di laptop sendiri.
+        if (Environment.GetEnvironmentVariable("KEVIN_BROWSER_UJI_AI") is { Length: > 0 } tiruan)
+            alamatAi = tiruan;
+#endif
+        var alat = new AlatSerap(new PengaturanAi(Path.Combine(folderData, BerkasAsisten), alamatAi), new JaringanSoup(),
             GLib.Functions.GetUserSpecialDir(GLib.UserDirectory.DirectoryDownload) ?? GLib.Functions.GetHomeDir(), TeksPdf.Ambil);
         var belajar = new HalamanBelajar(new BukuCatatan(FolderCatatan()), TimeProvider.System, BukaFolder, alat);
         Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar);

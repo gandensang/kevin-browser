@@ -21,16 +21,19 @@ namespace KevinBrowser.Asisten;
 /// </remarks>
 static class Markah
 {
-    /// <param name="penaut">Alamat untuk [[nama]]; null kalau catatannya tidak ada.</param>
+    /// <param name="penaut">
+    /// Alamat dan judul catatan untuk [[nama]]; null kalau catatannya tidak ada.
+    /// Judulnya jadi teks tautan, kecuali ada label ([[nama|label]]).
+    /// </param>
     /// <param name="geserJudul">Ditambahkan ke tingkat judul: 1 berarti "#" jadi &lt;h2&gt;.</param>
-    public static string KeHtml(string markdown, Func<string, string?>? penaut = null, int geserJudul = 0)
+    public static string KeHtml(string markdown, Func<string, (string Alamat, string Judul)?>? penaut = null, int geserJudul = 0)
     {
         var html = new StringBuilder();
         Blok(Bersihkan(markdown).Split('\n'), html, new Konteks(penaut, geserJudul), false);
         return html.ToString();
     }
 
-    sealed record Konteks(Func<string, string?>? Penaut, int GeserJudul);
+    sealed record Konteks(Func<string, (string Alamat, string Judul)?>? Penaut, int GeserJudul);
 
     /// <param name="Penanda">-, * atau + untuk daftar biasa; . atau ) untuk daftar bernomor.</param>
     /// <param name="Geser">Kolom tempat isi butir dimulai; baris lanjutannya menjorok sejauh ini.</param>
@@ -398,10 +401,10 @@ static class Markah
             }
             else if (c == '[' && TautanWiki(teks, i) is { } wiki)
             {
-                var label = (wiki.Label ?? wiki.Sasaran).Trim();
-                sb.Append(Simpan(k.Penaut?.Invoke(wiki.Sasaran) is { } alamat
-                    ? Tautan(alamat, label)
-                    : $"<span class=\"putus\">{HtmlEncode(label)}</span>"));
+                var label = wiki.Label?.Trim();
+                sb.Append(Simpan(k.Penaut?.Invoke(wiki.Sasaran) is { } tujuan
+                    ? Tautan(tujuan.Alamat, label ?? tujuan.Judul)
+                    : $"<span class=\"putus\">{HtmlEncode(label ?? wiki.Sasaran.Trim())}</span>"));
                 i += wiki.Panjang - 1;
             }
             else if (c == '[' && TautanMd(teks, i) is { } md)

@@ -437,10 +437,25 @@ details.mapel summary { cursor: pointer; }
 .cuplikan { font-size: 0.9rem; color: var(--redup); }
 mark { background: var(--sorot); color: inherit; border-radius: 0.2em; }
 
-/* Kemajuan serap materi */
+/* Kemajuan serap materi dan tanya-jawab */
 .tahap li { color: var(--redup); }
 .tahap li.selesai { color: var(--teks); }
 .tahap li.sedang { color: var(--teks); font-weight: 600; }
+
+/* Tanya-jawab: pertanyaan di kanan seperti obrolan, jawaban selebar halaman */
+.giliran { margin: 0 0 1.6rem; }
+.giliran .pertanyaan {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  width: fit-content;
+  max-width: 85%;
+  margin: 0 0 0.8rem auto;
+  padding: 0.6rem 1rem;
+  background: var(--permukaan);
+  border: 1px solid var(--garis);
+  border-radius: 0.9rem;
+}
+.tulis textarea.tanya { font-family: inherit; font-size: 1rem; }
 
 /* Kaki */
 

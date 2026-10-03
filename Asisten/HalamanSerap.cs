@@ -62,14 +62,14 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
                     "That API key doesn't look right. Copy it again from platform.deepseek.com."];
             else
             {
-                Pengaturan.Simpan(kueri["model"] ?? "", kunci.Length > 0 ? kunci : null);
+                Pengaturan.Simpan(kueri["model"] ?? "", kunci.Length > 0 ? kunci : null, kueri["model-tanya"]);
                 pesan = t["Pengaturan Asisten AI disimpan.", "AI assistant settings saved."];
             }
         }
 
         var judul = t["Asisten AI", "AI assistant"];
-        var model = string.Concat(PengaturanAi.SemuaModel.Select(m =>
-            $"""<option value="{m}"{(m == Pengaturan.Model ? " selected" : "")}>{HtmlEncode(NamaModel(t, m))}</option>"""));
+        string Pilihan(string terpilih) => string.Concat(PengaturanAi.SemuaModel.Select(m =>
+            $"""<option value="{m}"{(m == terpilih ? " selected" : "")}>{HtmlEncode(NamaModel(t, m))}</option>"""));
         var kunciAda = Pengaturan.KunciTersamar is { } samar
             ? $"""<p>{t["Kunci tersimpan:", "Saved key:"]} <code>{HtmlEncode(samar)}</code>. {await Saldo(t)}</p>"""
             : $"""<p>{t["Belum ada kunci API.", "No API key yet."]}</p>""";
@@ -83,14 +83,15 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         return (judul, $"""
             {HalamanBelajar.Jejak(t, null)}
             <h1>{judul}</h1>
-            <p class="pembuka">{t["Untuk menyerap materi pelajaran jadi catatan, dengan kunci API DeepSeek milik sendiri.",
-                "Turns study material into notes, with your own DeepSeek API key."]}</p>
+            <p class="pembuka">{t["Untuk menyerap materi pelajaran jadi catatan dan menjawab pertanyaan dari catatan, dengan kunci API DeepSeek milik sendiri.",
+                "Turns study material into notes and answers questions from the notes, with your own DeepSeek API key."]}</p>
             {HalamanPengaturan.Pesan(pesan)}
             {kunciAda}
             <form class="tulis" action="{AlamatAi}" method="post">
               <input type="hidden" name="aksi" value="simpan">
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
-              <label>{t["Model", "Model"]} <select name="model">{model}</select></label>
+              <label>{t["Model untuk menyerap materi", "Model for turning material into notes"]} <select name="model">{Pilihan(Pengaturan.Model)}</select></label>
+              <label>{t["Model untuk tanya-jawab", "Model for questions"]} <select name="model-tanya">{Pilihan(Pengaturan.ModelTanya)}</select></label>
               <label>{t["Kunci API", "API key"]} <input type="password" name="kunci" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
               <p class="catatan">{t["Kosongkan kalau kuncinya tidak diganti.", "Leave empty to keep the current key."]}</p>
               <p class="tombol-tombol"><button class="tombol utama" type="submit">{t["Simpan", "Save"]}</button></p>
@@ -103,8 +104,8 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
               <li>{t["Buat kunci di menu API Keys, salin, lalu tempel di atas.", "Create a key under API Keys, copy it, and paste it above."]}</li>
             </ol>
             <h2>{t["Privasi", "Privacy"]}</h2>
-            <p>{t["Kunci disimpan hanya di laptop ini, dalam berkas yang hanya bisa dibaca akun Anda, dan hanya dikirim ke api.deepseek.com. Isi dokumen yang diserap dikirim ke DeepSeek untuk diolah. Menurut <a href=\"https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html\">kebijakan privasinya</a>, DeepSeek menyimpan data di Tiongkok dan bisa memakainya untuk melatih modelnya. Jangan menyerap dokumen yang berisi data pribadi.",
-                "The key is stored only on this laptop, in a file only your account can read, and is sent only to api.deepseek.com. Documents you turn into notes are sent to DeepSeek to be processed. According to its <a href=\"https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html\">privacy policy</a>, DeepSeek stores data in China and may use it to train its models. Don't send documents that contain personal data."]}</p>
+            <p>{t["Kunci disimpan hanya di laptop ini, dalam berkas yang hanya bisa dibaca akun Anda, dan hanya dikirim ke api.deepseek.com. Isi dokumen yang diserap dikirim ke DeepSeek untuk diolah, begitu juga pertanyaan di halaman Tanya dan catatan yang dibaca AI untuk menjawabnya. Menurut <a href=\"https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html\">kebijakan privasinya</a>, DeepSeek menyimpan data di Tiongkok dan bisa memakainya untuk melatih modelnya. Jangan menyerap dokumen yang berisi data pribadi.",
+                "The key is stored only on this laptop, in a file only your account can read, and is sent only to api.deepseek.com. Documents you turn into notes are sent to DeepSeek to be processed, and so are questions on the Ask page and the notes the AI reads to answer them. According to its <a href=\"https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html\">privacy policy</a>, DeepSeek stores data in China and may use it to train its models. Don't send documents that contain personal data."]}</p>
             """);
     }
 
@@ -113,7 +114,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         try
         {
             using var batas = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            var saldo = await klien.Saldo(PengaturanAi.Alamat, Pengaturan.Kunci!, batas.Token);
+            var saldo = await klien.Saldo(Pengaturan.Alamat, Pengaturan.Kunci!, batas.Token);
             var jumlah = $"{saldo.Jumlah.ToString("0.00", CultureInfo.InvariantCulture)} {saldo.MataUang}";
             if (!t.Inggris)
                 jumlah = jumlah.Replace('.', ',');
@@ -142,7 +143,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
             <h1>{judul}</h1>
             <p class="pembuka">{t["AI mengolah materi pelajaran jadi catatan per topik: yang penting dibawa, yang dilewati disebutkan.",
                 "AI turns study material into notes, one per topic: what matters is kept, and what was skipped is listed."]}</p>
-            {TanpaKunci(t)}
+            {TanpaKunci(t, Pengaturan)}
             <h2>{t["Dari folder unduhan", "From the downloads folder"]}</h2>
 
             """);
@@ -179,18 +180,27 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         if (DaftarDokumen.Ambil(alat.FolderUnduhan, nama) is not { } dok)
             return (judul, Kerangka(t, judul, $"""<p class="pesan">{t["Berkas itu tidak ada di folder unduhan.", "That file isn't in the downloads folder."]}</p>"""));
 
-        if (buku.SudahDiserap(dok.Nama, dok.Ukuran, dok.WaktuUbah) is { } jadi)
+        // "Serap lagi": mis. membandingkan model, atau hasil pertama kurang
+        // bagus. Catatan lama tidak disentuh; yang baru ditulis di sebelahnya.
+        var aksi = $"{Alamat}&berkas={Uri.EscapeDataString(dok.Nama)}";
+        var lagi = kueri["lagi"] is not null;
+        var jadi = buku.SudahDiserap(dok.Nama, dok.Ukuran, dok.WaktuUbah);
+        if (jadi is not null && !lagi)
             return (judul, Kerangka(t, judul, $"""
                 <p class="pesan">{t[$"Dokumen ini sudah pernah diserap jadi: {HtmlEncode(jadi)}. Tidak perlu diserap lagi; kalau berkasnya berubah, ia bisa diserap ulang.",
                     $"This document was already turned into: {HtmlEncode(jadi)}. No need to do it again; if the file changes, it can be done again."]}</p>
-                <p><a class="tombol" href="{HalamanBawaan.Belajar}">{t["Lihat catatan", "See the notes"]}</a></p>
+                <p class="tombol-tombol"><a class="tombol" href="{HalamanBawaan.Belajar}">{t["Lihat catatan", "See the notes"]}</a>
+                <a class="tombol" href="{HtmlEncode(aksi + "&lagi")}">{t["Serap lagi", "Do it again"]}</a></p>
+                <p class="catatan">{t["Serap lagi, misalnya dengan model lain untuk membandingkan, menulis catatan baru di sebelah yang lama; yang lama tidak diubah.",
+                    "Doing it again, for example with another model to compare, writes new notes next to the old ones; the old ones are not changed."]}</p>
                 """));
+        if (lagi)
+            aksi += "&lagi";
 
         var (teks, galat) = await BacaDokumen(t, dok);
         if (teks is null)
             return (judul, Kerangka(t, judul, $"""<p class="pesan">{HtmlEncode(galat!)}</p>"""));
 
-        var aksi = $"{Alamat}&berkas={Uri.EscapeDataString(dok.Nama)}";
         string? pesan = null;
         if (post && kueri["aksi"] == "mulai")
         {
@@ -203,14 +213,16 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         var info = dok.Nama.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
             ? t[$"{halaman} halaman, ", $"{halaman} pages, "] : "";
         return (judul, Kerangka(t, judul, $"""
-            {TanpaKunci(t)}
+            {TanpaKunci(t, Pengaturan)}
             {HalamanPengaturan.Pesan(pesan)}
             <div class="kartu"><p><strong>{HtmlEncode(dok.Nama)}</strong><br>{info}{t.Ukuran(dok.Ukuran)}, {t[$"{t.Angka(teks.Length)} huruf teks", $"{t.Angka(teks.Length)} characters of text"]}</p></div>
             <form class="tulis" action="{HtmlEncode(aksi)}" method="post">
               <input type="hidden" name="aksi" value="mulai">
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
               {HalamanBelajar.PilihanMapel(t, buku, kueri["mapel"] ?? "", kueri["mapel-baru"] ?? "")}
+              {PilihanModel(t, kueri["model"])}
               {Perkiraan(t, teks.Length)}
+              {(jadi is null ? "" : $"""<p class="catatan">{t["Catatan lama dari dokumen ini tetap ada; yang baru ditulis di sebelahnya.", "The old notes from this document stay; the new ones are written next to them."]}</p>""")}
               <p class="tombol-tombol"><button class="tombol utama" type="submit"{(Pengaturan.Kunci is null ? " disabled" : "")}>{t["Serap", "Make notes"]}</button>
               <a class="tombol" href="{Alamat}">{t["Batal", "Cancel"]}</a></p>
             </form>
@@ -240,7 +252,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
                 pesan = Masalah(t, kueri);
         }
         return (judul, Kerangka(t, judul, $"""
-            {TanpaKunci(t)}
+            {TanpaKunci(t, Pengaturan)}
             {HalamanPengaturan.Pesan(pesan)}
             <form class="tulis" action="{HtmlEncode(Alamat + "&tempel")}" method="post">
               <input type="hidden" name="aksi" value="mulai">
@@ -250,6 +262,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
               <label for="teks">{t["Teks", "Text"]}</label>
               <textarea id="teks" name="teks" rows="16">
             {HtmlEncode(teks)}</textarea>
+              {PilihanModel(t, kueri["model"])}
               {Perkiraan(t, Math.Max(teks.Length, 3000))}
               <p class="tombol-tombol"><button class="tombol utama" type="submit"{(Pengaturan.Kunci is null ? " disabled" : "")}>{t["Serap", "Make notes"]}</button>
               <a class="tombol" href="{Alamat}">{t["Batal", "Cancel"]}</a></p>
@@ -260,7 +273,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     // Pekerjaan baru kalau token, kunci, dan mata pelajarannya beres; null kalau tidak.
     PekerjaanSerap? Mulai(Teks t, Kueri kueri, string sumber, long ukuran, long waktuUbah, string teks) =>
         Pengaturan.Kunci is not null && NamaMapel(kueri) is { } mapel && TokenSekali.Pakai(kueri["token"])
-            ? penyerap.Mulai(sumber, ukuran, waktuUbah, teks, mapel, t)
+            ? penyerap.Mulai(sumber, ukuran, waktuUbah, teks, mapel, kueri["model"] ?? "", t)
             : null;
 
     string? NamaMapel(Kueri kueri)
@@ -354,8 +367,8 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     {
         var j = k.Jawaban!;
         var masuk = t.Angka(j.TokenCache + j.TokenBaru);
-        return t[$"Token: {masuk} masuk ({t.Angka(j.TokenCache)} dari cache), {t.Angka(j.TokenKeluar)} keluar · biaya ±{Dolar(t, k.Biaya)} · {kerja.Model}, {detik} detik.",
-            $"Tokens: {masuk} in ({t.Angka(j.TokenCache)} cached), {t.Angka(j.TokenKeluar)} out · cost ±{Dolar(t, k.Biaya)} · {kerja.Model}, {detik} s."];
+        return t[$"Token: {masuk} masuk ({t.Angka(j.TokenCache)} dari cache), {t.Angka(j.TokenKeluar)} keluar · biaya {Dolar(t, k.Biaya)} · {kerja.Model}, {detik} detik.",
+            $"Tokens: {masuk} in ({t.Angka(j.TokenCache)} cached), {t.Angka(j.TokenKeluar)} out · cost {Dolar(t, k.Biaya)} · {kerja.Model}, {detik} s."];
     }
 
     // ---------- bagian bersama ----------
@@ -424,16 +437,25 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     string Perkiraan(Teks t, int huruf)
     {
         var (masuk, keluar) = HargaAi.PerkiraanToken(huruf, PromptSerap.Sistem(t).Length);
-        var model = Pengaturan.Model;
-        var biaya = HargaAi.Biaya(model, 0, masuk, keluar, waktu.GetUtcNow());
+        var biaya = string.Join(", ", PengaturanAi.SemuaModel.Select(m =>
+            $"{Dolar(t, HargaAi.Biaya(m, 0, masuk, keluar, waktu.GetUtcNow()))} {t["dengan", "with"]} {m}"));
         var jam = HargaAi.JamSibuk(waktu.GetUtcNow())
             ? t["jam sibuk DeepSeek; di luar jam sibuk separuhnya", "DeepSeek peak hours; half price off-peak"]
             : t["di luar jam sibuk DeepSeek", "DeepSeek off-peak hours"];
-        return $"""<p class="catatan">{t[$"Perkiraan kasar: ±{t.Angka(masuk)} token masuk, ±{t.Angka(keluar)} token keluar, biaya ±{Dolar(t, biaya)} dengan {model} ({jam}). Isi teks dikirim ke DeepSeek untuk diolah.",
-            $"Rough estimate: ±{t.Angka(masuk)} tokens in, ±{t.Angka(keluar)} tokens out, cost ±{Dolar(t, biaya)} with {model} ({jam}). The text is sent to DeepSeek to be processed."]}</p>""";
+        return $"""<p class="catatan">{t[$"Perkiraan kasar: ±{t.Angka(masuk)} token masuk, ±{t.Angka(keluar)} token keluar; biaya {biaya} ({jam}). Isi teks dikirim ke DeepSeek untuk diolah.",
+            $"Rough estimate: ±{t.Angka(masuk)} tokens in, ±{t.Angka(keluar)} tokens out; cost {biaya} ({jam}). The text is sent to DeepSeek to be processed."]}</p>""";
     }
 
-    string TanpaKunci(Teks t) => Pengaturan.Kunci is not null ? "" :
+    // Model untuk dokumen ini; bawaannya pilihan di halaman Asisten AI.
+    string PilihanModel(Teks t, string? terpilih)
+    {
+        var dipilih = terpilih is not null && PengaturanAi.SemuaModel.Contains(terpilih) ? terpilih : Pengaturan.Model;
+        var pilihan = string.Concat(PengaturanAi.SemuaModel.Select(m =>
+            $"""<option value="{m}"{(m == dipilih ? " selected" : "")}>{HtmlEncode(NamaModel(t, m))}</option>"""));
+        return $"""<label>{t["Model", "Model"]} <select name="model">{pilihan}</select></label>""";
+    }
+
+    internal static string TanpaKunci(Teks t, PengaturanAi pengaturan) => pengaturan.Kunci is not null ? "" :
         $"""<p class="pesan">{t[$"Belum ada kunci API DeepSeek. Atur dulu di <a href=\"{AlamatAi}\">Asisten AI</a>.",
             $"There's no DeepSeek API key yet. Set one on the <a href=\"{AlamatAi}\">AI assistant</a> page first."]}</p>""";
 
@@ -443,14 +465,14 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     static string NamaModel(Teks t, string model) => model switch
     {
         "deepseek-flash" => t["DeepSeek Flash: ±4× lebih murah", "DeepSeek Flash: about 4× cheaper"],
-        _ => t["DeepSeek V4 Pro: lebih teliti memilah mana yang penting", "DeepSeek V4 Pro: better at judging what matters"],
+        _ => t["DeepSeek V4 Pro: lebih teliti, ±4× lebih mahal", "DeepSeek V4 Pro: more careful, about 4× the price"],
     };
 
-    // "$0,021" atau "$0.021"
+    // Perkiraan: "±$0,021" atau "±$0.021", dan "<$0,001" untuk yang lebih kecil.
     internal static string Dolar(Teks t, double jumlah)
     {
-        var teks = jumlah < 0.001 ? "<$0.001" : "$" + jumlah.ToString(jumlah < 1 ? "0.000" : "0.00", CultureInfo.InvariantCulture);
-        return HtmlEncode(t.Inggris ? teks : teks.Replace('.', ','));
+        var teks = jumlah < 0.001 ? "&lt;$0.001" : "±$" + jumlah.ToString(jumlah < 1 ? "0.000" : "0.00", CultureInfo.InvariantCulture);
+        return t.Inggris ? teks : teks.Replace('.', ',');
     }
 
     string Kerangka(Teks t, string judul, string isi) => $"""

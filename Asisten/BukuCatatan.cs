@@ -151,7 +151,9 @@ public sealed class BukuCatatan(string folder)
     /// catatan menyebut sumbernya; nama berkas berawalan bulan, dan tautan
     /// [[nama]] antarcatatan di kelompok ini ikut diganti ke nama berkasnya.
     /// </summary>
-    public List<Catatan> TulisSerapan(string folderMapel, IReadOnlyList<CatatanSerapan> semua, string sumber, DateTime sekarang)
+    /// <param name="keterangan">Di belakang nama sumber, dalam kurung, mis. model yang mengolahnya.</param>
+    public List<Catatan> TulisSerapan(string folderMapel, IReadOnlyList<CatatanSerapan> semua, string sumber, DateTime sekarang,
+        string? keterangan = null)
     {
         if (!NamaAman(folderMapel))
             throw new IOException("nama mata pelajaran tidak boleh dipakai");
@@ -173,7 +175,7 @@ public sealed class BukuCatatan(string folder)
             for (var i = 0; i < semua.Count; i++)
             {
                 TulisAtomik(Path.Combine(folder, folderMapel, nama[i] + ".md"),
-                    Rapikan($"Sumber: {SatuBaris(sumber)}\n\n{GantiTautan(semua[i].Isi, peta)}"));
+                    Rapikan($"Sumber: {SatuBaris(sumber)}{(keterangan is null ? "" : $" ({SatuBaris(keterangan)})")}\n\n{GantiTautan(semua[i].Isi, peta)}"));
                 hasil.Add(Ambil(folderMapel, nama[i])!);
             }
             return hasil;
@@ -273,21 +275,24 @@ public sealed class BukuCatatan(string folder)
     /// isi, atau nama mata pelajarannya), tanpa membedakan huruf besar dan
     /// kecil. Yang cocok di judul lebih dulu, lalu yang terbaru.
     /// </summary>
-    public List<HasilCari> Cari(string kata, int maks = 100)
+    /// <param name="semuaKata">false: cukup sebagian katanya; yang memuat paling banyak kata lebih dulu.</param>
+    public List<HasilCari> Cari(string kata, int maks = 100, bool semuaKata = true)
     {
         var bagian = kata.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (bagian.Length == 0)
             return [];
-        var hasil = new List<(HasilCari Hasil, bool DiJudul)>();
+        var hasil = new List<(HasilCari Hasil, int Cocok, bool DiJudul)>();
         foreach (var c in Semua())
         {
             var isi = Baca(c.Mapel, c.Nama) ?? "";
             var semua = $"{c.Mapel}\n{c.Judul}\n{isi}";
-            if (bagian.All(b => semua.Contains(b, StringComparison.OrdinalIgnoreCase)))
-                hasil.Add((new HasilCari(c, Cuplikan(isi, bagian)),
-                    bagian.All(b => c.Judul.Contains(b, StringComparison.OrdinalIgnoreCase))));
+            var cocok = bagian.Where(b => semua.Contains(b, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (cocok.Length == bagian.Length || (!semuaKata && cocok.Length > 0))
+                hasil.Add((new HasilCari(c, Cuplikan(isi, cocok)), cocok.Length,
+                    cocok.All(b => c.Judul.Contains(b, StringComparison.OrdinalIgnoreCase))));
         }
-        return [.. hasil.OrderByDescending(h => h.DiJudul).ThenByDescending(h => h.Hasil.Catatan.Diubah).Take(maks).Select(h => h.Hasil)];
+        return [.. hasil.OrderByDescending(h => h.Cocok).ThenByDescending(h => h.DiJudul).ThenByDescending(h => h.Hasil.Catatan.Diubah)
+            .Take(maks).Select(h => h.Hasil)];
     }
 
     /// <summary>

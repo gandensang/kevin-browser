@@ -68,8 +68,9 @@ You don't have to be a WebKit expert to help:
   this project is measured, never guessed.
 - **Bring an idea.** The top menu bar is deliberately kept almost empty:
   space reserved for whatever will make Kevin Browser truly its own. The
-  first is Learn, a notebook for school. Chess and a study assistant are
-  next. Yours could be the fourth, as long as a weak laptop can carry it.
+  first is Learn, a notebook for school that now has a study assistant.
+  Chess is next. Yours could be the third, as long as a weak laptop can
+  carry it.
 - **Fix a bug, translate a page, or improve the docs.**
 
 Open an issue to talk it through, in English or Indonesian. When you're ready
@@ -98,10 +99,11 @@ you don't have to.
 - **Chess.** Chess is our children's hobby, so something chess-related will
   come, in a form a weak laptop can carry.
 - **A study assistant.** The first steps are already here: Learn
-  (`kevin://belajar`), a notebook of plain Markdown files, which can turn
-  study material into notes with your own DeepSeek API key. Next comes
-  helping students learn from those notes, not just answering questions, as
-  long as it costs the laptop next to nothing.
+  (`kevin://belajar`), a notebook of plain Markdown files that can turn
+  study material into notes and answer questions from them, with your own
+  DeepSeek API key. For homework it is told to help step by step instead of
+  handing over answers. More will follow, as long as it costs the laptop
+  next to nothing.
 
 ## What makes it light
 
@@ -206,8 +208,9 @@ next. Learn (`kevin://belajar`) is a notebook for school: notes are plain
 Markdown files in `~/kevin-catatan`, one folder per subject, which you can
 read, search, and write there or open in any text editor. With your own
 DeepSeek API key, it can also turn study material (a PDF, a text file, or
-pasted text) into notes; the estimated cost is shown before anything is
-sent. The pages about
+pasted text) into notes, with the estimated cost shown before anything is
+sent, and answer questions from your notes, naming the notes it used. The
+pages about
 the browser itself (Story, Pros & Cons, Guide, Plans, About Us) sit at the
 bottom of every page, and all of them work offline.
 
@@ -229,7 +232,8 @@ Your data (history, bookmarks, cookies, open tabs, settings) stays in
 Your notes stay in `~/kevin-catatan/`.
 Kevin Browser itself sends nothing to any server: apart from the sites you
 open, it only downloads the block lists once a week, and, if you set up the
-AI assistant, sends the material you choose to DeepSeek.
+AI assistant, sends DeepSeek the material you choose, your questions, and
+the notes the AI reads to answer them.
 
 ## License
 

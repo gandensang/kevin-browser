@@ -4,7 +4,7 @@ namespace Uji;
 
 public sealed class UjiMarkah
 {
-    static string Html(string md, Func<string, string?>? penaut = null) => Markah.KeHtml(md, penaut);
+    static string Html(string md, Func<string, (string, string)?>? penaut = null) => Markah.KeHtml(md, penaut);
 
     [Fact]
     public void HtmlDiCatatanDiEscape()
@@ -130,9 +130,10 @@ public sealed class UjiMarkah
     [Fact]
     public void TautanAntarCatatan()
     {
-        var html = Html("Lihat [[2026-09-kesalahan-umum]] dan [[tidak-ada|yang hilang]].",
-            nama => nama == "2026-09-kesalahan-umum" ? "kevin://belajar?m=fisika&c=2026-09-kesalahan-umum" : null);
-        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan-umum\">2026-09-kesalahan-umum</a>", html);
+        var html = Html("Lihat [[2026-09-kesalahan-umum]], [[2026-09-kesalahan-umum|ini]], dan [[tidak-ada|yang hilang]].",
+            nama => nama == "2026-09-kesalahan-umum" ? ("kevin://belajar?m=fisika&c=2026-09-kesalahan-umum", "Kesalahan umum") : null);
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan-umum\">Kesalahan umum</a>", html);   // judulnya, bukan nama berkas
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan-umum\">ini</a>", html);
         Assert.Contains("<span class=\"putus\">yang hilang</span>", html);
     }
 
@@ -166,7 +167,7 @@ public sealed class UjiMarkah
     [Fact]
     public void CatatanSungguhanTerbacaUtuh()
     {
-        var html = Markah.KeHtml(CatatanFisika, nama => $"kevin://belajar?m=fisika&c={nama}", geserJudul: 1);
+        var html = Markah.KeHtml(CatatanFisika, nama => ($"kevin://belajar?m=fisika&c={nama}", nama), geserJudul: 1);
         Assert.StartsWith("<p>Sumber: handout-gerak-parabola.md (Handout Fisika Kelas X)</p>\n<h2>Gerak Parabola", html);
         Assert.Contains("<li>Sumbu X: GLB, kecepatan tetap <code>vx = v0 &#183; cos(theta)</code>\n</li>", html);
         Assert.Contains("<h3>Tiga rumus cepat</h3>\n<pre><code>t_puncak = v0 &#183; sin(theta) / g\nR        = v0^2", html);

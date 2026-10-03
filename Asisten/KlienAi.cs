@@ -35,6 +35,22 @@ public sealed record JawabanAi(string Isi, int TokenCache, int TokenBaru, int To
 
 public sealed record SaldoAi(bool BisaDipakai, string MataUang, double Jumlah);
 
+/// <summary>Satu permintaan tool dari model: id-nya, nama tool, dan argumen JSON-nya.</summary>
+public sealed record PanggilTool(string Id, string Nama, string Argumen);
+
+/// <summary>
+/// Satu pesan percakapan: "system", "user", "assistant" (boleh berisi
+/// permintaan tool), atau "tool" (hasil tool, dengan <see cref="IdTool"/>).
+/// </summary>
+public sealed record PesanAi(string Peran, string? Isi, IReadOnlyList<PanggilTool>? Panggil = null, string? IdTool = null);
+
+/// <summary>Tool yang boleh dipanggil model. <see cref="Skema"/>: JSON Schema parameternya.</summary>
+public sealed record DefinisiTool(string Nama, string Keterangan, string Skema);
+
+/// <summary>Satu putaran dengan tool: teks jawaban, atau permintaan tool (atau keduanya).</summary>
+public sealed record JawabanTool(string? Isi, IReadOnlyList<PanggilTool> Panggil, int TokenCache, int TokenBaru, int TokenKeluar,
+    string? AlasanBerhenti);
+
 /// <summary>
 /// Klien API chat bergaya OpenAI, untuk DeepSeek. Jawaban dialirkan
 /// (stream), supaya kemajuannya bisa ditampilkan dan sambungan tidak diam
@@ -113,13 +129,7 @@ public sealed class KlienAi(IJaringan jaringan)
                         alasan = akhir.GetString();
                 }
                 if (akar.TryGetProperty("usage", out var pakai) && pakai.ValueKind == JsonValueKind.Object)
-                {
-                    cache = Angka(pakai, "prompt_cache_hit_tokens");
-                    baru = pakai.TryGetProperty("prompt_cache_miss_tokens", out _)
-                        ? Angka(pakai, "prompt_cache_miss_tokens")
-                        : Angka(pakai, "prompt_tokens") - cache;
-                    keluar = Angka(pakai, "completion_tokens");
-                }
+                    (cache, baru, keluar) = Token(pakai);
             }, batal);
         }
         catch (JsonException)
@@ -129,6 +139,118 @@ public sealed class KlienAi(IJaringan jaringan)
         if (status != 200)
             throw Galat(status, lain.ToString());
         return new JawabanAi(isi.ToString(), cache, baru, keluar, alasan);
+    }
+
+    /// <summary>
+    /// Satu putaran percakapan yang boleh memanggil tool, tanpa stream dan
+    /// tanpa mode berpikir. Model sendiri yang memutuskan: menjawab, atau
+    /// meminta tool. <paramref name="bolehTool"/> false = tool_choice "none",
+    /// memaksa model menjawab dengan yang sudah ia punya.
+    /// </summary>
+    public async Task<JawabanTool> ChatTool(string alamat, string kunci, string model, IReadOnlyList<PesanAi> pesan,
+        IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken, CancellationToken batal)
+    {
+        var isi = new StringBuilder();
+        var status = await jaringan.Kirim(new PermintaanHttp("POST", alamat + "/chat/completions", Kepala(kunci),
+            BadanTool(model, pesan, alat, bolehTool, maksToken), "application/json"), baris => isi.Append(baris).Append('\n'), batal);
+        if (status != 200)
+            throw Galat(status, isi.ToString());
+        try
+        {
+            using var dok = JsonDocument.Parse(isi.ToString());
+            var akar = dok.RootElement;
+            var pilihan = akar.GetProperty("choices")[0];
+            var pesanAi = pilihan.GetProperty("message");
+            var teks = pesanAi.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+            var panggil = new List<PanggilTool>();
+            if (pesanAi.TryGetProperty("tool_calls", out var daftar) && daftar.ValueKind == JsonValueKind.Array)
+                foreach (var x in daftar.EnumerateArray())
+                {
+                    var fungsi = x.GetProperty("function");
+                    panggil.Add(new PanggilTool(x.GetProperty("id").GetString() ?? "", fungsi.GetProperty("name").GetString() ?? "",
+                        fungsi.TryGetProperty("arguments", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString()! : "{}"));
+                }
+            var alasan = pilihan.TryGetProperty("finish_reason", out var akhir) && akhir.ValueKind == JsonValueKind.String ? akhir.GetString() : null;
+            var (cache, baru, keluar) = akar.TryGetProperty("usage", out var pakai) && pakai.ValueKind == JsonValueKind.Object
+                ? Token(pakai) : (0, 0, 0);
+            return new JawabanTool(teks, panggil, cache, baru, keluar, alasan);
+        }
+        catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException
+            or IndexOutOfRangeException or ArgumentOutOfRangeException)
+        {
+            throw new GalatAi(0, "jawaban tidak terbaca");
+        }
+    }
+
+    static (int Cache, int Baru, int Keluar) Token(JsonElement pakai)
+    {
+        var cache = Angka(pakai, "prompt_cache_hit_tokens");
+        var baru = pakai.TryGetProperty("prompt_cache_miss_tokens", out _)
+            ? Angka(pakai, "prompt_cache_miss_tokens")
+            : Angka(pakai, "prompt_tokens") - cache;
+        return (cache, baru, Angka(pakai, "completion_tokens"));
+    }
+
+    static byte[] BadanTool(string model, IReadOnlyList<PesanAi> pesan, IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken)
+    {
+        using var aliran = new MemoryStream();
+        using (var json = new Utf8JsonWriter(aliran))
+        {
+            json.WriteStartObject();
+            json.WriteString("model", model);
+            json.WriteStartArray("messages");
+            foreach (var p in pesan)
+            {
+                json.WriteStartObject();
+                json.WriteString("role", p.Peran);
+                if (p.Isi is null)
+                    json.WriteNull("content");
+                else
+                    json.WriteString("content", p.Isi);
+                if (p.IdTool is not null)
+                    json.WriteString("tool_call_id", p.IdTool);
+                if (p.Panggil is { Count: > 0 })
+                {
+                    json.WriteStartArray("tool_calls");
+                    foreach (var panggil in p.Panggil)
+                    {
+                        json.WriteStartObject();
+                        json.WriteString("id", panggil.Id);
+                        json.WriteString("type", "function");
+                        json.WriteStartObject("function");
+                        json.WriteString("name", panggil.Nama);
+                        json.WriteString("arguments", panggil.Argumen);
+                        json.WriteEndObject();
+                        json.WriteEndObject();
+                    }
+                    json.WriteEndArray();
+                }
+                json.WriteEndObject();
+            }
+            json.WriteEndArray();
+            json.WriteStartArray("tools");
+            foreach (var a in alat)
+            {
+                json.WriteStartObject();
+                json.WriteString("type", "function");
+                json.WriteStartObject("function");
+                json.WriteString("name", a.Nama);
+                json.WriteString("description", a.Keterangan);
+                json.WritePropertyName("parameters");
+                json.WriteRawValue(a.Skema);
+                json.WriteEndObject();
+                json.WriteEndObject();
+            }
+            json.WriteEndArray();
+            json.WriteString("tool_choice", bolehTool ? "auto" : "none");
+            json.WriteStartObject("thinking");
+            json.WriteString("type", "disabled");
+            json.WriteEndObject();
+            json.WriteNumber("max_tokens", maksToken);
+            json.WriteBoolean("stream", false);
+            json.WriteEndObject();
+        }
+        return aliran.ToArray();
     }
 
     static (string, string)[] Kepala(string kunci) => [("Authorization", "Bearer " + kunci)];

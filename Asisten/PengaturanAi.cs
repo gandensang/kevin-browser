@@ -7,16 +7,23 @@ namespace KevinBrowser.Asisten;
 /// dalam berkas yang hanya bisa dibaca akun pemakai. Kuncinya hanya dikirim
 /// ke <see cref="Alamat"/>.
 /// </summary>
-public sealed class PengaturanAi(string berkas)
+/// <param name="alamat">Alamat API; selain di build Debug untuk uji, selalu <see cref="AlamatDeepSeek"/>.</param>
+public sealed class PengaturanAi(string berkas, string alamat = PengaturanAi.AlamatDeepSeek)
 {
-    public const string Alamat = "https://api.deepseek.com";
+    public const string AlamatDeepSeek = "https://api.deepseek.com";
+
+    public string Alamat => alamat;
 
     /// <summary>Yang pertama bawaan: lebih teliti menilai mana yang penting.</summary>
     public static readonly string[] SemuaModel = ["deepseek-v4-pro", "deepseek-flash"];
 
     public string Berkas => berkas;
 
+    /// <summary>Untuk menyerap materi: sekali per dokumen, penilaiannya menentukan mutu catatan.</summary>
     public string Model => Baca().GetValueOrDefault("model") is { } model && SemuaModel.Contains(model) ? model : SemuaModel[0];
+
+    /// <summary>Untuk tanya-jawab: dipakai sering, jadi bawaannya yang murah.</summary>
+    public string ModelTanya => Baca().GetValueOrDefault("model-tanya") is { } model && SemuaModel.Contains(model) ? model : "deepseek-flash";
 
     public string? Kunci => Baca().GetValueOrDefault("kunci") is { Length: > 0 } kunci ? kunci : null;
 
@@ -27,12 +34,14 @@ public sealed class PengaturanAi(string berkas)
     public static bool KunciSah(string kunci) =>
         kunci.Length is >= 10 and <= 200 && !kunci.Any(c => char.IsWhiteSpace(c) || char.IsControl(c));
 
-    /// <summary>Model dan kunci baru; kunci null = kunci lama tetap.</summary>
-    public void Simpan(string model, string? kunci)
+    /// <summary>Model dan kunci baru; kunci null = kunci lama tetap, model tak dikenal diabaikan.</summary>
+    public void Simpan(string model, string? kunci, string? modelTanya = null)
     {
         var isi = Baca();
         if (SemuaModel.Contains(model))
             isi["model"] = model;
+        if (modelTanya is not null && SemuaModel.Contains(modelTanya))
+            isi["model-tanya"] = modelTanya;
         if (kunci is not null && KunciSah(kunci))
             isi["kunci"] = kunci;
         Tulis(isi);

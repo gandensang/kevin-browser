@@ -123,6 +123,8 @@ public sealed partial class UjiHalamanSerap : IDisposable
         var konfirmasi = await Html("kevin://belajar?serap&berkas=materi.txt");
         Assert.Contains("huruf teks", konfirmasi);
         Assert.Contains("Perkiraan kasar:", konfirmasi);
+        Assert.Matches("biaya ±\\$0,0\\d\\d dengan deepseek-v4-pro, (±\\$0,0\\d\\d|&lt;\\$0,001) dengan deepseek-flash", konfirmasi);
+        Assert.Contains("<option value=\"deepseek-v4-pro\" selected>", konfirmasi);
         Assert.DoesNotContain("disabled", konfirmasi);
 
         var selesai = await MulaiSerap("kevin://belajar?serap&berkas=materi.txt", ("mapel-baru", "Fisika"));
@@ -132,10 +134,18 @@ public sealed partial class UjiHalamanSerap : IDisposable
         Assert.Contains("Token: 4.600 masuk (1.200 dari cache), 800 keluar", selesai);
         Assert.StartsWith("Sumber: materi.txt", layanan.Catatan.Baca("fisika", "2026-10-gerak-parabola"));
 
-        // Dokumen yang sama tidak diserap dua kali.
+        // Dokumen yang sama tidak diserap dua kali, kecuali diminta ("Serap lagi").
         Assert.Contains("sudah diserap", await Html("kevin://belajar?serap"));
-        Assert.Contains("sudah pernah diserap", await Html("kevin://belajar?serap&berkas=materi.txt"));
+        var sudah = await Html("kevin://belajar?serap&berkas=materi.txt");
+        Assert.Contains("sudah pernah diserap", sudah);
+        Assert.Contains("href=\"kevin://belajar?serap&amp;berkas=materi.txt&amp;lagi\"", sudah);
         Assert.Single(layanan.Jaringan.Permintaan, p => p.Alamat.EndsWith("/chat/completions", StringComparison.Ordinal));
+
+        var lagi = await MulaiSerap("kevin://belajar?serap&berkas=materi.txt&lagi", ("mapel", "fisika"), ("model", "deepseek-flash"));
+        Assert.Contains("<h1>Selesai</h1>", lagi);
+        Assert.StartsWith("Sumber: materi.txt (diolah deepseek-flash)", layanan.Catatan.Baca("fisika", "2026-10-gerak-parabola-2"));
+        Assert.StartsWith("Sumber: materi.txt (diolah deepseek-v4-pro)", layanan.Catatan.Baca("fisika", "2026-10-gerak-parabola"));
+        Assert.Equal(2, layanan.Catatan.BacaSumber()!.Split('\n').Count(b => b.StartsWith("| materi.txt |", StringComparison.Ordinal)));
     }
 
     [Fact]

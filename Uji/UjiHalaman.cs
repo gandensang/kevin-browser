@@ -146,14 +146,14 @@ public sealed partial class UjiHalaman : IDisposable
 
     // Kata-kata yang tidak mungkin ada di halaman berbahasa Inggris. Alamat
     // kevin:// ditulis huruf kecil, jadi tidak ikut tertangkap.
-    static readonly string[] KataIndonesia =
+    internal static readonly string[] KataIndonesia =
         [" yang ", " dan ", " untuk ", " tidak ", " dengan ", " atau ", " di ", "Hapus", "Simpan", "Beranda",
          "Pengaturan", "Riwayat", "halaman", "Halaman", "Kembali", "Tekan ", "Cari "];
 
     public static TheoryData<string> SemuaHalaman => new([.. Menu, "kevin://riwayat", "kevin://bookmark", "kevin://tidak-ada",
         "kevin://belajar?baru", "kevin://belajar?cari=lichess", "kevin://belajar?cari=", "kevin://belajar?sumber",
         "kevin://belajar?c=tidak-ada", "kevin://belajar?serap", "kevin://belajar?serap&tempel", "kevin://belajar?ai",
-        "kevin://belajar?serap&kerja=ABC"]);
+        "kevin://belajar?serap&kerja=ABC", "kevin://belajar?tanya", "kevin://belajar?tanya&obrolan=ABC"]);
 
     [Theory]
     [MemberData(nameof(SemuaHalaman))]

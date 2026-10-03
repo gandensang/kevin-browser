@@ -55,6 +55,58 @@ sealed class JaringanPalsu : IJaringan
         return baris;
     }
 
+    /// <summary>Jawaban tanpa stream seperti DeepSeek: teks, atau permintaan tool (nama, argumen JSON).</summary>
+    public static (int, IEnumerable<string>) Tool(string? isi, params (string Nama, string Argumen)[] panggil) =>
+        Tool(isi, panggil, panggil.Length > 0 ? "tool_calls" : "stop");
+
+    public static (int, IEnumerable<string>) Tool(string? isi, (string Nama, string Argumen)[] panggil, string alasan,
+        int cache = 900, int baru = 300, int keluar = 50)
+    {
+        using var aliran = new MemoryStream();
+        using (var json = new Utf8JsonWriter(aliran))
+        {
+            json.WriteStartObject();
+            json.WriteString("object", "chat.completion");
+            json.WriteStartArray("choices");
+            json.WriteStartObject();
+            json.WriteNumber("index", 0);
+            json.WriteStartObject("message");
+            json.WriteString("role", "assistant");
+            if (isi is null)
+                json.WriteNull("content");
+            else
+                json.WriteString("content", isi);
+            if (panggil.Length > 0)
+            {
+                json.WriteStartArray("tool_calls");
+                for (var i = 0; i < panggil.Length; i++)
+                {
+                    json.WriteStartObject();
+                    json.WriteString("id", $"call_{i}_{panggil[i].Nama}");
+                    json.WriteString("type", "function");
+                    json.WriteStartObject("function");
+                    json.WriteString("name", panggil[i].Nama);
+                    json.WriteString("arguments", panggil[i].Argumen);
+                    json.WriteEndObject();
+                    json.WriteEndObject();
+                }
+                json.WriteEndArray();
+            }
+            json.WriteEndObject();
+            json.WriteString("finish_reason", alasan);
+            json.WriteEndObject();
+            json.WriteEndArray();
+            json.WriteStartObject("usage");
+            json.WriteNumber("prompt_tokens", cache + baru);
+            json.WriteNumber("completion_tokens", keluar);
+            json.WriteNumber("prompt_cache_hit_tokens", cache);
+            json.WriteNumber("prompt_cache_miss_tokens", baru);
+            json.WriteEndObject();
+            json.WriteEndObject();
+        }
+        return (200, [System.Text.Encoding.UTF8.GetString(aliran.ToArray())]);
+    }
+
     public static (int, IEnumerable<string>) Galat(int status, string pesan) =>
         (status, [$$$"""{"error":{"message":"{{{pesan}}}","type":"invalid_request_error","code":null}}"""]);
 }

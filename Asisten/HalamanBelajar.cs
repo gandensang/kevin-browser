@@ -23,14 +23,17 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
 {
     static readonly HashSet<string> Singkatan = new(StringComparer.OrdinalIgnoreCase) { "ipa", "ips", "pjok", "ppkn", "pkn", "tik", "p5" };
 
-    // Asisten AI (menyerap materi); tidak ada kalau platform tidak menyediakan alatnya.
+    // Asisten AI (menyerap materi, tanya-jawab); tidak ada kalau platform tidak menyediakan alatnya.
     readonly HalamanSerap? serap = alat is null ? null : new HalamanSerap(buku, waktu, alat);
+    readonly HalamanTanya? tanya = alat is null ? null : new HalamanTanya(buku, waktu, alat);
 
     public async Task<(string Judul, string Isi)> Buat(string uri, string? isiPost, Teks t)
     {
         var kueri = new Kueri(uri, isiPost);
         if (serap is not null && (kueri["ai"] is not null || kueri["serap"] is not null))
             return await serap.Buat(kueri, isiPost is not null, t);
+        if (tanya is not null && kueri["tanya"] is not null)
+            return tanya.Buat(kueri, isiPost is not null, t);
 
         var simpan = isiPost is not null && kueri["aksi"] == "simpan";
         var mapel = string.IsNullOrEmpty(kueri["m"]) ? null : kueri["m"];
@@ -59,7 +62,8 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
                 "Study notes, saved as ordinary files on this laptop."]}</p>
             {HalamanPengaturan.Pesan(pesan)}
             {KotakCari(t, "")}
-            <p class="tombol-tombol"><a class="tombol utama" href="{HalamanBawaan.Belajar}?baru">{t["Tulis catatan", "Write a note"]}</a>{(serap is null ? ""
+            <p class="tombol-tombol"><a class="tombol utama" href="{HalamanBawaan.Belajar}?baru">{t["Tulis catatan", "Write a note"]}</a>{(tanya is null ? ""
+                : $""" <a class="tombol" href="{HalamanBawaan.Belajar}?tanya">{t["Tanya", "Ask"]}</a>""")}{(serap is null ? ""
                 : $""" <a class="tombol" href="{HalamanBawaan.Belajar}?serap">{t["Serap materi", "Turn material into notes"]}</a>""")}{(buku.AdaSumber
                 ? $""" <a class="tombol" href="{HalamanBawaan.Belajar}?sumber">{t["Dokumen sumber", "Source documents"]}</a>"""
                 : "")}</p>
@@ -123,7 +127,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     (string, string) Lihat(Teks t, Catatan c, string isi, string? pesan)
     {
         var penaut = buku.Penaut(c.Mapel);
-        var badan = Markah.KeHtml(TanpaJudul(isi), sasaran => penaut(sasaran) is { } tujuan ? Alamat(tujuan) : null, geserJudul: 1);
+        var badan = Markah.KeHtml(TanpaJudul(isi), sasaran => penaut(sasaran) is { } tujuan ? (Alamat(tujuan), tujuan.Judul) : null, geserJudul: 1);
         var jalur = Tampilan(Path.Combine(buku.Folder, c.Mapel ?? "", c.Nama + ".md"));
         return (c.Judul, $"""
             {Jejak(t, c.Mapel)}
@@ -131,7 +135,8 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
             {HalamanPengaturan.Pesan(pesan)}
             <article class="isi-catatan">
             {badan}</article>
-            <p class="tombol-tombol"><a class="tombol" href="{HtmlEncode(Alamat(c) + "&sunting")}">{t["Sunting", "Edit"]}</a></p>
+            <p class="tombol-tombol"><a class="tombol" href="{HtmlEncode(Alamat(c) + "&sunting")}">{t["Sunting", "Edit"]}</a>{(tanya is null ? ""
+                : $""" <a class="tombol" href="{HtmlEncode(HalamanTanya.AlamatTentang(c))}">{t["Tanya tentang catatan ini", "Ask about this note"]}</a>""")}</p>
             <p class="catatan">{t["Berkas", "File"]} <code>{HtmlEncode(jalur)}</code> · {t["diubah", "changed"]} {t.Tanggal(c.Diubah)}</p>
             """);
     }
@@ -268,13 +273,13 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     // Halaman sesudah formulir tersimpan: langsung pindah ke alamat catatan,
     // tanpa JavaScript. Penundaan 0 membuat WebKit mengganti entri riwayat
     // POST ini, bukan menambah entri baru.
-    internal static (string, string) Pindah(Teks t, string alamat)
+    internal static (string, string) Pindah(Teks t, string alamat, string? judul = null)
     {
-        var judul = t["Tersimpan", "Saved"];
+        judul ??= t["Tersimpan", "Saved"];
         return (judul, $"""
             <meta http-equiv="refresh" content="0; url={HtmlEncode(alamat)}">
             <h1>{judul}</h1>
-            <p><a href="{HtmlEncode(alamat)}">{t["Buka catatannya", "Open the note"]}</a></p>
+            <p><a href="{HtmlEncode(alamat)}">{t["Lanjut", "Continue"]}</a></p>
             """);
     }
 

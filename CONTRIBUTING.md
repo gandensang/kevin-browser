@@ -94,7 +94,11 @@ the address to the window that's already open.
   (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
   `sumber.md` so nothing is processed twice, and writes the notes; the model
   only turns text into JSON notes and has no tools, so a document can't make
-  it do anything. HTTP goes through `IJaringan`, which `Linux/` implements
+  it do anything. `Penanya` ("asker") answers questions from the notes with a
+  small tool loop: the model may call two read-only tools, `cari_catatan`
+  (search) and `baca_catatan` (read one note), for at most four rounds, and
+  the code runs them (`AlatCatatan`). There is no tool that writes, deletes,
+  or opens anything. HTTP goes through `IJaringan`, which `Linux/` implements
   with libsoup (already loaded by WebKit): .NET's `HttpClient` would add
   megabytes to the binary. No GTK or WebKit here either.
 - **`Linux/`**: the application. `Program` prepares the environment, `Mesin`
@@ -175,6 +179,10 @@ Each of these cost hours. Read them before touching `Linux/`.
   killed processes to stderr.
 - `KEVIN_BROWSER_UJI_JS='…'` (Debug builds only) runs JavaScript in the first
   page that finishes loading.
+- `KEVIN_BROWSER_UJI_AI=http://127.0.0.1:8765` (Debug builds only) sends the
+  AI assistant's requests to `scripts/deepseek-tiruan.py`, a stand-in server
+  on your own machine, so the Learn pages can be tried without a key or any
+  cost. Any key is accepted. The unit tests use `JaringanPalsu` instead.
 - `scripts/klik.py` sends real X11 clicks and keystrokes to the newest
   kevin-browser window, and `scripts/tangkap.py` takes a screenshot of it.
   `klik.py` refuses to send anything if that window isn't focused. To keep

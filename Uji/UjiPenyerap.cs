@@ -25,9 +25,9 @@ public sealed class UjiPenyerap : IDisposable
 
     static Teks T => new(Bahasa.Indonesia);
 
-    async Task<KeadaanSerap> Serap(string teks = "Isi handout tentang gerak parabola.")
+    async Task<KeadaanSerap> Serap(string teks = "Isi handout tentang gerak parabola.", string model = "")
     {
-        var kerja = Penyerap.Mulai("handout.pdf", 2269, 1790173271, teks, "fisika", T);
+        var kerja = Penyerap.Mulai("handout.pdf", 2269, 1790173271, teks, "fisika", model, T);
         await kerja.Tugas;
         return kerja.Keadaan;
     }
@@ -41,7 +41,7 @@ public sealed class UjiPenyerap : IDisposable
         Assert.Equal(["2026-10-gerak-parabola", "2026-10-syarat-pakai"], k.Hasil.Select(c => c.Nama));
         Assert.Equal(["Gerak Parabola", "Syarat pakai rumus"], k.Hasil.Select(c => c.Judul));
         var isi = buku.Baca("fisika", "2026-10-gerak-parabola")!;
-        Assert.StartsWith("Sumber: handout.pdf\n\n# Gerak Parabola", isi);
+        Assert.StartsWith("Sumber: handout.pdf (diolah deepseek-v4-pro)\n\n# Gerak Parabola", isi);
         Assert.Contains("[[2026-10-syarat-pakai]]", isi);   // tautan antarcatatan ikut nama berkasnya
         Assert.Equal("fisika/2026-10-gerak-parabola.md, fisika/2026-10-syarat-pakai.md", buku.SudahDiserap("handout.pdf", 2269, 1790173271));
         Assert.Null(buku.SudahDiserap("handout.pdf", 2270, 1790173271));
@@ -60,11 +60,31 @@ public sealed class UjiPenyerap : IDisposable
         var pesan = dok.RootElement.GetProperty("messages");
         Assert.Contains("MENILAI, BUKAN MENYALIN", pesan[0].GetProperty("content").GetString());
         Assert.Contains("(tambahan, bukan dari dokumen)", pesan[0].GetProperty("content").GetString());
+        Assert.Contains("catatan PERTAMA adalah ringkasan", pesan[0].GetProperty("content").GetString());
+        Assert.Contains("DIGABUNG", pesan[0].GetProperty("content").GetString());
         var pengguna = pesan[1].GetProperty("content").GetString()!;
         Assert.Contains("Mata pelajaran: Fisika", pengguna);
         Assert.Contains("Dokumen: handout.pdf", pengguna);
         Assert.Contains("2026-09-newton", pengguna);
         Assert.Contains("<<<DOKUMEN\nTEKS DOKUMEN\nDOKUMEN>>>", pengguna);
+    }
+
+    [Fact]
+    public async Task ModelBisaDipilihPerDokumen()
+    {
+        var k = await Serap(model: "deepseek-flash");
+        using var dok = JsonDocument.Parse(Assert.Single(jaringan.Permintaan).Isi!);
+        Assert.Equal("deepseek-flash", dok.RootElement.GetProperty("model").GetString());
+        Assert.StartsWith("Sumber: handout.pdf (diolah deepseek-flash)", buku.Baca("fisika", k.Hasil[0].Nama));
+        Assert.Equal((1200 * 0.006 + 3400 * 0.30 + 800 * 1.20) / 1_000_000, k.Biaya, 12);
+    }
+
+    [Fact]
+    public async Task ModelTakDikenalMemakaiPengaturan()
+    {
+        await Serap(model: "gpt-mahal");
+        using var dok = JsonDocument.Parse(Assert.Single(jaringan.Permintaan).Isi!);
+        Assert.Equal("deepseek-v4-pro", dok.RootElement.GetProperty("model").GetString());
     }
 
     [Theory]
@@ -105,7 +125,7 @@ public sealed class UjiPenyerap : IDisposable
     public async Task Dibatalkan()
     {
         jaringan.Tahan = new TaskCompletionSource();
-        var kerja = Penyerap.Mulai("a.txt", 1, 1, "teks", "fisika", T);
+        var kerja = Penyerap.Mulai("a.txt", 1, 1, "teks", "fisika", "", T);
         kerja.Batal.Cancel();
         await kerja.Tugas;
         Assert.Equal(TahapSerap.Dibatalkan, kerja.Keadaan.Tahap);
