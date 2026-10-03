@@ -1,11 +1,14 @@
 namespace KevinBrowser.Linux;
 
 /// <summary>ILayanan untuk Linux: data dan cache WebKit ada di folder profil.</summary>
-sealed class LayananLinux(Riwayat riwayat, DaftarBookmark bookmark, Preferensi preferensi, string folderData, string folderCache) : ILayanan
+sealed class LayananLinux(Riwayat riwayat, DaftarBookmark bookmark, Preferensi preferensi, string folderData, string folderCache,
+    IHalaman belajar) : ILayanan
 {
     const WebKit.WebsiteDataTypes JenisCache = WebKit.WebsiteDataTypes.DiskCache | WebKit.WebsiteDataTypes.MemoryCache;
 
     public Riwayat Riwayat => riwayat;
+
+    public IHalaman? Belajar => belajar;
 
     public DaftarBookmark Bookmark => bookmark;
 

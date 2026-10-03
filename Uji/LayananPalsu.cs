@@ -1,6 +1,17 @@
 using KevinBrowser;
+using KevinBrowser.Asisten;
 
 namespace Uji;
+
+/// <summary>
+/// Tes yang membuat halaman kevin:// berjalan satu per satu. TokenSekali
+/// dipakai bersama dan hanya mengingat 32 token terakhir, jadi token yang baru
+/// dibuat satu tes bisa tergeser tes lain sebelum sempat dipakai.
+/// </summary>
+static class Koleksi
+{
+    public const string Halaman = "Halaman kevin://";
+}
 
 /// <summary>Jam yang berhenti di satu waktu, zona UTC.</summary>
 sealed class JamTetap(DateTimeOffset sekarang) : TimeProvider
@@ -22,6 +33,8 @@ sealed class LayananPalsu : ILayanan, IDisposable
         Riwayat = new Riwayat(Path.Combine(folder, "riwayat.tsv"));
         Bookmark = new DaftarBookmark(Path.Combine(folder, "bookmark.tsv"));
         Preferensi = new Preferensi(Path.Combine(folder, "preferensi.tsv"));
+        Catatan = new BukuCatatan(Path.Combine(folder, "catatan"));
+        Belajar = new HalamanBelajar(Catatan, Waktu, FolderDibuka.Add);
     }
 
     public Riwayat Riwayat { get; }
@@ -30,6 +43,9 @@ sealed class LayananPalsu : ILayanan, IDisposable
     public List<(JenisData Jenis, TimeSpan? Rentang)> Dihapus { get; } = [];
     public TimeProvider Waktu { get; } = new JamTetap(Sekarang);
     public StatusPenyaring? Penyaring { get; set; }
+    public BukuCatatan Catatan { get; }
+    public IHalaman? Belajar { get; }
+    public List<string> FolderDibuka { get; } = [];
 
     public long UkuranCache() => 76L * 1024 * 1024;
     public long UkuranDataSitus() => 3L * 1024 * 1024;

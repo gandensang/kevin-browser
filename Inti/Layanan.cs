@@ -41,6 +41,23 @@ public interface ILayanan
 
     /// <summary>Pemblokir iklan dan pelacak; null kalau dimatikan.</summary>
     StatusPenyaring? Penyaring { get; }
+
+    /// <summary>kevin://belajar, dari proyek Asisten; null kalau tidak dipasang.</summary>
+    IHalaman? Belajar => null;
+}
+
+/// <summary>
+/// Halaman kevin:// yang dibuat proyek lain, mis. kevin://belajar dari
+/// Asisten. Inti tidak bergantung pada proyek itu; platform memasangnya
+/// lewat <see cref="ILayanan"/>.
+/// </summary>
+public interface IHalaman
+{
+    /// <summary>
+    /// Judul dan isi HTML halaman, tanpa kerangka. <paramref name="isiPost"/>:
+    /// isi formulir POST (urlencoded), kalau permintaannya POST.
+    /// </summary>
+    Task<(string Judul, string Isi)> Buat(string uri, string? isiPost, Teks t);
 }
 
 /// <summary>Keadaan pemblokir iklan dan pelacak untuk halaman Pengaturan.</summary>

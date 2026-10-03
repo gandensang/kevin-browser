@@ -2,18 +2,28 @@ using System.Security.Cryptography;
 
 namespace KevinBrowser;
 
-/// <summary>Bagian <c>?a=b&amp;c=d</c> dari alamat kevin://, seperti dikirim formulir GET.</summary>
+/// <summary>
+/// Bagian <c>?a=b&amp;c=d</c> dari alamat kevin://, seperti dikirim formulir
+/// GET, ditambah isi formulir POST kalau ada (formatnya sama).
+/// </summary>
 sealed class Kueri
 {
     readonly List<(string Kunci, string Nilai)> isi = [];
 
-    public Kueri(string uri)
+    public Kueri(string uri, string? isiPost = null)
     {
         var tanya = uri.IndexOf('?');
-        if (tanya < 0)
-            return;
-        var pagar = uri.IndexOf('#', tanya);
-        var bagian = pagar < 0 ? uri[(tanya + 1)..] : uri[(tanya + 1)..pagar];
+        if (tanya >= 0)
+        {
+            var pagar = uri.IndexOf('#', tanya);
+            Tambah(pagar < 0 ? uri[(tanya + 1)..] : uri[(tanya + 1)..pagar]);
+        }
+        if (isiPost is not null)
+            Tambah(isiPost);
+    }
+
+    void Tambah(string bagian)
+    {
         foreach (var pasangan in bagian.Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
             var sama = pasangan.IndexOf('=');

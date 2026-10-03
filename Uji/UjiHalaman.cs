@@ -1,14 +1,16 @@
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using KevinBrowser;
 
 namespace Uji;
 
+[Collection(Koleksi.Halaman)]
 public sealed partial class UjiHalaman : IDisposable
 {
     static readonly string[] Menu =
     [
-        "kevin://beranda", "kevin://kisah", "kevin://kelebihan", "kevin://panduan",
+        "kevin://beranda", "kevin://belajar", "kevin://kisah", "kevin://kelebihan", "kevin://panduan",
         "kevin://rencana", "kevin://tentang", "kevin://pengaturan",
     ];
 
@@ -95,7 +97,7 @@ public sealed partial class UjiHalaman : IDisposable
         var tautan = new HashSet<string>();
         foreach (var uri in Menu.Append("kevin://riwayat"))
             foreach (Match m in TautanKevin().Matches(await Html(uri)))
-                tautan.Add(m.Groups[1].Value);
+                tautan.Add(WebUtility.HtmlDecode(m.Groups[1].Value));
 
         Assert.NotEmpty(tautan);
         foreach (var uri in tautan)
@@ -117,11 +119,12 @@ public sealed partial class UjiHalaman : IDisposable
         TautanKevin().Matches(html).Select(m => m.Groups[1].Value).ToList();
 
     [Fact]
-    public async Task MenuAtasHanyaBerandaSegeraHadirDanPengaturan()
+    public async Task MenuAtasBerandaBelajarSegeraHadirDanPengaturan()
     {
         var kepala = Bagian(await Html("kevin://kisah"), "header");
         // Yang pertama tautan merek (logo).
-        Assert.Equal(["kevin://beranda", "kevin://beranda", "kevin://rencana", "kevin://pengaturan"], Tautan(kepala));
+        Assert.Equal(["kevin://beranda", "kevin://beranda", "kevin://belajar", "kevin://rencana", "kevin://pengaturan"], Tautan(kepala));
+        Assert.Contains("<a href=\"kevin://belajar\">Belajar</a>", kepala);
         Assert.Contains("<a href=\"kevin://rencana\" class=\"segera\">Segera hadir</a>", kepala);
     }
 
@@ -147,7 +150,9 @@ public sealed partial class UjiHalaman : IDisposable
         [" yang ", " dan ", " untuk ", " tidak ", " dengan ", " atau ", " di ", "Hapus", "Simpan", "Beranda",
          "Pengaturan", "Riwayat", "halaman", "Halaman", "Kembali", "Tekan ", "Cari "];
 
-    public static TheoryData<string> SemuaHalaman => new([.. Menu, "kevin://riwayat", "kevin://bookmark", "kevin://tidak-ada"]);
+    public static TheoryData<string> SemuaHalaman => new([.. Menu, "kevin://riwayat", "kevin://bookmark", "kevin://tidak-ada",
+        "kevin://belajar?baru", "kevin://belajar?cari=lichess", "kevin://belajar?cari=", "kevin://belajar?sumber",
+        "kevin://belajar?c=tidak-ada"]);
 
     [Theory]
     [MemberData(nameof(SemuaHalaman))]
@@ -163,6 +168,7 @@ public sealed partial class UjiHalaman : IDisposable
         Assert.Contains(">Home</a>", html);
         Assert.Contains(">Settings</a>", html);
         Assert.Contains(">Coming soon</a>", html);
+        Assert.Contains(">Learn</a>", html);
         Assert.Contains($"Kevin Browser version {HalamanBawaan.Versi} ·", html);
         Assert.DoesNotContain("{{", html);
         foreach (var kata in KataIndonesia)

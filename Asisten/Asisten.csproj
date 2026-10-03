@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Fitur belajar (kevin://belajar): buku catatan pelajaran sekarang,
+       asisten AI nanti. Terpisah dari Inti supaya inti browser tetap kecil.
+       Tanpa GTK/WebKit, jadi bisa dipakai versi Windows dan dites tanpa
+       membuka jendela. -->
+  <PropertyGroup>
+    <RootNamespace>KevinBrowser.Asisten</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Inti/Inti.csproj" />
+    <InternalsVisibleTo Include="Uji" />
+  </ItemGroup>
+
+</Project>

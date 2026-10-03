@@ -1,3 +1,5 @@
+using KevinBrowser.Asisten;
+
 namespace KevinBrowser.Linux;
 
 /// <summary>
@@ -88,7 +90,8 @@ static class Mesin
         Bookmark = new DaftarBookmark(Path.Combine(folderData, "bookmark.tsv"));
         TabTerbuka = new TabTerbuka(Path.Combine(folderData, "tab.tsv"));
         Preferensi = new Preferensi(BerkasPreferensi(folderData));
-        Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache);
+        var belajar = new HalamanBelajar(new BukuCatatan(FolderCatatan()), TimeProvider.System, BukaFolder);
+        Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar);
 
         setelanWeb = WebKit.Settings.New();
         // Halaman yang ditinggalkan tidak disimpan utuh di memori untuk tombol
@@ -187,7 +190,7 @@ static class Mesin
         string jenis;
         try
         {
-            (isi, jenis) = await HalamanBawaan.Ambil(uri, Layanan);
+            (isi, jenis) = await HalamanBawaan.Ambil(uri, Layanan, IsiPost(permintaan));
         }
         catch (Exception e)
         {
@@ -200,6 +203,52 @@ static class Mesin
         using var aliran = Gio.MemoryInputStream.NewFromBytes(data);
         permintaan.Finish(aliran, isi.Length, jenis);
         permintaan.Dispose();
+    }
+
+    // Isi formulir POST: kevin://belajar menyimpan catatan lewat POST, supaya
+    // isinya tidak masuk ke alamat. Lebih dari 1 MB dianggap tidak ada.
+    static string? IsiPost(WebKit.URISchemeRequest permintaan)
+    {
+        if (permintaan.GetHttpMethod() != "POST")
+            return null;
+        try
+        {
+            using var badan = permintaan.GetHttpBody();
+            if (badan is null)
+                return null;
+            using var isi = new MemoryStream();
+            var penyangga = new byte[16 * 1024];
+            for (int dibaca; isi.Length <= BukuCatatan.UkuranMaks && (dibaca = (int)badan.Read(penyangga, null)) > 0;)
+                isi.Write(penyangga, 0, dibaca);
+            return isi.Length > BukuCatatan.UkuranMaks ? null : System.Text.Encoding.UTF8.GetString(isi.GetBuffer(), 0, (int)isi.Length);
+        }
+        catch (GLib.GException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Folder catatan kevin://belajar: ~/kevin-catatan, di akar folder rumah
+    /// karena nama folder XDG (Documents, Dokumen, …) ikut bahasa sistem.
+    /// Build Debug memakai folder sendiri supaya catatan sungguhan tidak
+    /// tersentuh saat mencoba-coba. KEVIN_BROWSER_CATATAN menimpa keduanya.
+    /// </summary>
+    static string FolderCatatan() =>
+        Environment.GetEnvironmentVariable("KEVIN_BROWSER_CATATAN") is { Length: > 0 } folder ? folder
+        : Debug ? Path.Combine(GLib.Functions.GetUserDataDir(), Profil + "-catatan")
+        : Path.Combine(GLib.Functions.GetHomeDir(), "kevin-catatan");
+
+    static void BukaFolder(string folder)
+    {
+        try
+        {
+            Gio.AppInfoHelper.LaunchDefaultForUri(new Uri(folder).AbsoluteUri, null);
+        }
+        catch (GLib.GException e)
+        {
+            Console.Error.WriteLine($"[kevin-browser] gagal membuka {folder}: {e.Message}");
+        }
     }
 
     static GObject.ConstructArgument Objek(string nama, GObject.Object objek) =>

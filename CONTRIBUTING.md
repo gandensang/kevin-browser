@@ -30,8 +30,8 @@ Where help is most wanted:
 - **Less CPU** for video, heavy JavaScript, and idle pages: old processors
   have none to spare.
 - **A Windows version**, since many old laptops run Windows.
-- **Features from the roadmap** (chess, an assistant inside the browser), but
-  only in a form a weak laptop can carry.
+- **Features from the roadmap** (chess, the study assistant), but only in a
+  form a weak laptop can carry.
 - **Translations and writing**: the built-in pages exist in Indonesian and
   English.
 
@@ -54,6 +54,7 @@ help with the naming during review. A short glossary:
 | setelan, preferensi, bahasa | settings (computed), preferences, language |
 | uji, ukur, terukur | test, measure, measured |
 | mesin, proses, pemulung | engine, process, reaper (kills leaked processes) |
+| belajar, catatan, mapel (mata pelajaran) | learn, note, school subject |
 
 ## Building
 
@@ -83,13 +84,20 @@ the address to the window that's already open.
   restore, the Adblock list converter (`KonverterAdblock`), the tracking
   parameter stripper, the interface language (`Teks`, `Preferensi`), and
   per-site rules (`IzinMedia`, `IzinNotifikasi`, `PutarOtomatis`).
+- **`Asisten/`** ("assistant"): the Learn page (`kevin://belajar`), kept out
+  of `Inti/` so the browser core stays small. `BukuCatatan` ("notebook")
+  reads and writes the notes, plain Markdown files in `~/kevin-catatan`, one
+  folder per subject, and never touches anything outside that folder.
+  `Markah` turns a note into HTML, escaping everything: notes may contain
+  text from websites. `HalamanBelajar` builds the pages. No GTK or WebKit
+  here either; the study assistant will grow in this project.
 - **`Linux/`**: the application. `Program` prepares the environment, `Mesin`
   ("engine") creates one WebContext and NetworkSession shared by all tabs
   (every global memory-saving setting lives there), `Jendela` ("window") is
   the toolbar and the tab strip, and `Tab` holds one WebView that can be put
   to sleep and woken up. `Penyaring` runs the blocker, `Pemulung` cleans up
   leaked WebKit processes, and `Sinyal` and `Asli` talk to C directly.
-- **`Uji/`** ("tests"): xUnit tests for `Inti/`.
+- **`Uji/`** ("tests"): xUnit tests for `Inti/` and `Asisten/`.
 - **`scripts/`**: .deb packaging, APT release, memory measurement, and
   window-testing tools.
 
@@ -151,8 +159,12 @@ Each of these cost hours. Read them before touching `Linux/`.
 
 ## Testing
 
-- `dotnet test Uji` covers the logic in `Inti/`. The GTK/WebKit side has no
-  automated tests; run the application.
+- `dotnet test Uji` covers the logic in `Inti/` and `Asisten/`. The
+  GTK/WebKit side has no automated tests; run the application.
+- Debug builds keep their notes in their own folder
+  (`~/.local/share/kevin-browser-debug-catatan`), so trying things out never
+  touches real notes. `KEVIN_BROWSER_CATATAN=/some/folder` points any build
+  at another notes folder.
 - `KEVIN_BROWSER_CATAT=1` logs tabs waking and sleeping, permissions, and
   killed processes to stderr.
 - `KEVIN_BROWSER_UJI_JS='…'` (Debug builds only) runs JavaScript in the first

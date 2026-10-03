@@ -15,12 +15,14 @@ namespace KevinBrowser;
 /// berkas apa adanya, mis. <c>kevin://gaya.css</c>. Yang disajikan hanya
 /// berkas yang tertanam, jadi tidak ada jalan ke berkas lain di disk.
 /// Pengaturan, Riwayat, dan Bookmark dibuat saat diminta dari data
-/// <see cref="ILayanan"/> (HalamanPengaturan.cs, dst).
+/// <see cref="ILayanan"/> (HalamanPengaturan.cs, dst). Belajar dibuat proyek
+/// Asisten, lewat <see cref="ILayanan.Belajar"/>.
 /// </remarks>
 public static class HalamanBawaan
 {
     public const string Skema = "kevin";
     public const string Beranda = "kevin://beranda";
+    public const string Belajar = "kevin://belajar";
     public const string Pengaturan = "kevin://pengaturan";
     public const string Riwayat = "kevin://riwayat";
     public const string Bookmark = "kevin://bookmark";
@@ -33,12 +35,13 @@ public static class HalamanBawaan
 
     readonly record struct Butir(string Nama, string Judul, string JudulInggris, string? Kelas = null);
 
-    // Kepala: halaman utama, dan tempat untuk fitur khusus Kevin Browser
-    // nanti (catur, asisten, …). Sampai fiturnya ada, tempat itu menunjuk ke
-    // halaman Rencana.
+    // Kepala: halaman utama, fitur khusus Kevin Browser (Belajar), dan tempat
+    // untuk fitur berikutnya (catur, asisten, …). Sampai fiturnya ada, tempat
+    // itu menunjuk ke halaman Rencana.
     static readonly Butir[] MenuKepala =
     [
         new("beranda", "Beranda", "Home"),
+        new("belajar", "Belajar", "Learn"),
         new("rencana", "Segera hadir", "Coming soon", "segera"),
         new("pengaturan", "Pengaturan", "Settings"),
     ];
@@ -56,9 +59,9 @@ public static class HalamanBawaan
     /// <summary>
     /// Isi dan tipe MIME untuk sebuah alamat <c>kevin://…</c>. Tanpa
     /// <paramref name="layanan"/>, Pengaturan dan Riwayat dianggap tidak ada
-    /// dan bahasanya Indonesia.
+    /// dan bahasanya Indonesia. <paramref name="isiPost"/>: isi formulir POST.
     /// </summary>
-    public static async Task<(byte[] Isi, string Jenis)> Ambil(string uri, ILayanan? layanan = null)
+    public static async Task<(byte[] Isi, string Jenis)> Ambil(string uri, ILayanan? layanan = null, string? isiPost = null)
     {
         var t = layanan?.Preferensi.Teks ?? new Teks(Bahasa.Indonesia);
         var nama = NamaDari(uri);
@@ -80,6 +83,9 @@ public static class HalamanBawaan
                 return Halaman(t, "pengaturan", t["Riwayat", "History"], HalamanRiwayat.Buat(new Kueri(uri), layanan));
             case "bookmark" when layanan is not null:
                 return Halaman(t, "beranda", t["Bookmark", "Bookmarks"], HalamanBookmark.Buat(new Kueri(uri), layanan));
+            case "belajar" when layanan?.Belajar is { } belajar:
+                var halaman = await belajar.Buat(uri, isiPost, t);
+                return Halaman(t, "belajar", halaman.Judul, halaman.Isi, "belajar");
         }
 
         var butir = MenuKaki.Append(MenuKepala[0]).FirstOrDefault(m => m.Nama == nama);

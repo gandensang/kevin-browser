@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Tes untuk Inti saja: logika tanpa GTK/WebKit. Perilaku yang butuh
+  <!-- Tes untuk Inti dan Asisten: logika tanpa GTK/WebKit. Perilaku yang butuh
        jendela diuji dengan menjalankan aplikasinya (scripts/klik.py,
        scripts/tangkap.py). -->
   <PropertyGroup>
@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Inti/Inti.csproj" />
+    <ProjectReference Include="../Asisten/Asisten.csproj" />
   </ItemGroup>
 
   <ItemGroup>

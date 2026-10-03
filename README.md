@@ -14,7 +14,7 @@ build his own browser.
 **This is that browser.** Kevin Browser opens the modern web (YouTube, Google
 Docs, WhatsApp Web, news sites) on a laptop like Kevin's. It puts tabs to
 sleep, blocks ads and trackers, refuses to let videos play on their own, and
-ships as a single 4.9 MB file for Linux.
+ships as a single 5.1 MB file for Linux.
 
     kevin-browser                       # opens the home page
     kevin-browser detik.com             # opens an address
@@ -66,10 +66,10 @@ You don't have to be a WebKit expert to help:
   specs (`inxi -Fxz`).
 - **Measure the sites you use** and share the numbers. Every memory claim in
   this project is measured, never guessed.
-- **Bring an idea.** The top menu bar is deliberately kept almost empty: a
-  blank space reserved for whatever will make Kevin Browser truly its own.
-  Chess and an in-browser assistant are the first two ideas on the list.
-  Yours could be the third, as long as a weak laptop can carry it.
+- **Bring an idea.** The top menu bar is deliberately kept almost empty:
+  space reserved for whatever will make Kevin Browser truly its own. The
+  first is Learn, a notebook for school. Chess and a study assistant are
+  next. Yours could be the fourth, as long as a weak laptop can carry it.
 - **Fix a bug, translate a page, or improve the docs.**
 
 Open an issue to talk it through, in English or Indonesian. When you're ready
@@ -97,9 +97,10 @@ you don't have to.
 
 - **Chess.** Chess is our children's hobby, so something chess-related will
   come, in a form a weak laptop can carry.
-- **An assistant that works inside the browser.** Not just answering
-  questions, but helping get things done in the page you're on, as long as it
-  costs the laptop next to nothing.
+- **A study assistant.** The first step is already here: Learn
+  (`kevin://belajar`), a notebook of plain Markdown files. Next comes turning
+  study material into notes and helping students learn from them, not just
+  answering questions, as long as it costs the laptop next to nothing.
 
 ## What makes it light
 
@@ -199,9 +200,12 @@ started as a family project in Indonesia. Don't let that stop you; see
 ## A quick tour
 
 The home page (`kevin://beranda`) has a Google search box and your bookmarks.
-The top menu holds just Home, Settings, and a spot for what's coming next.
-The pages about the browser itself (Story, Pros & Cons, Guide, Plans, About
-Us) sit at the bottom of every page, and all of them work offline.
+The top menu holds just Home, Learn, Settings, and a spot for what's coming
+next. Learn (`kevin://belajar`) is a notebook for school: notes are plain
+Markdown files in `~/kevin-catatan`, one folder per subject, which you can
+read, search, and write there or open in any text editor. The pages about
+the browser itself (Story, Pros & Cons, Guide, Plans, About Us) sit at the
+bottom of every page, and all of them work offline.
 
 | Keys | Action |
 |---|---|
@@ -218,6 +222,7 @@ Us) sit at the bottom of every page, and all of them work offline.
 
 Your data (history, bookmarks, cookies, open tabs, settings) stays in
 `~/.local/share/kevin-browser/` and can be cleared from `kevin://pengaturan`.
+Your notes stay in `~/kevin-catatan/`.
 Kevin Browser itself sends nothing to any server: apart from the sites you
 open, the only thing it downloads is the block lists, once a week.
 

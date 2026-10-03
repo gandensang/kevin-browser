@@ -16,4 +16,10 @@
     <EmbeddedResource Include="Halaman/en/*" LogicalName="Halaman/en/%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- Halaman kevin://belajar (proyek Asisten) memakai Kueri dan TokenSekali
+       yang sama dengan halaman di sini. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Asisten" />
+  </ItemGroup>
+
 </Project>

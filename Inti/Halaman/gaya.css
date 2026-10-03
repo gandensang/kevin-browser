@@ -113,6 +113,7 @@ code, pre {
 
 code { padding: 0.1em 0.35em; }
 pre { padding: 0.8rem 1rem; overflow-x: auto; }
+pre code { padding: 0; background: none; }
 
 table { width: 100%; border-collapse: collapse; margin: 0 0 1rem; font-size: 0.95rem; }
 th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--garis); }
@@ -374,6 +375,66 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--petak-gelap); 
 
 .bookmark .hapus { flex: none; padding: 0 0.3rem; color: var(--redup); text-decoration: none; font-size: 1.2rem; }
 .bookmark .hapus:hover { color: #c0563f; }
+
+/* Belajar: buku catatan pelajaran */
+
+.jejak { margin: 0 0 0.3rem; font-size: 0.9rem; color: var(--redup); }
+.jejak a { color: var(--redup); }
+
+details.mapel {
+  background: var(--permukaan);
+  border: 1px solid var(--garis);
+  border-radius: 0.9rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: 0.7rem;
+}
+
+details.mapel summary { cursor: pointer; }
+.daftar-catatan { margin: 0.5rem 0 0.2rem; padding-left: 1.2rem; }
+.daftar-catatan li { margin-bottom: 0.25rem; }
+.daftar-catatan .tambah { list-style: none; margin-left: -1.2rem; font-size: 0.9rem; }
+
+.isi-catatan { overflow-wrap: anywhere; }
+.isi-catatan h3 { font-size: 1.08rem; margin: 1.6rem 0 0.5rem; }
+.isi-catatan h4, .isi-catatan h5, .isi-catatan h6 { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+.isi-catatan blockquote { margin: 0 0 1rem; padding: 0.1rem 1rem; border-left: 4px solid var(--garis); color: var(--redup); }
+.isi-catatan hr { border: 0; border-top: 1px solid var(--garis); margin: 1.5rem 0; }
+/* Tabel lebar digeser ke samping; tanpa ini kolom pendek terpecah per huruf. */
+.isi-catatan .tabel { overflow-x: auto; overflow-wrap: normal; margin: 0 0 1rem; }
+.isi-catatan .tabel table { margin: 0; }
+/* [[tautan]] ke catatan yang tidak ada */
+.isi-catatan .putus { color: var(--redup); text-decoration: underline dashed; }
+
+.tulis label { display: block; margin: 0 0 0.8rem; font-weight: 600; }
+
+.tulis input[type="text"], .tulis select, .tulis textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.3rem;
+  font: inherit;
+  font-weight: 400;
+  color: var(--teks);
+  background: var(--permukaan);
+  border: 1px solid var(--garis);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.tulis textarea {
+  font-family: "Noto Sans Mono", "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 0.4rem;
+}
+
+.tulis .baris { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+.tulis .baris label { flex: 1 1 14rem; }
+
+.hasil-cari { list-style: none; padding: 0; }
+.hasil-cari li { margin: 0; padding: 0.5rem 0; border-bottom: 1px solid var(--garis); }
+.cuplikan { font-size: 0.9rem; color: var(--redup); }
+mark { background: var(--sorot); color: inherit; border-radius: 0.2em; }
 
 /* Kaki */
 

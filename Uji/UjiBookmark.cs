@@ -5,6 +5,7 @@ using KevinBrowser;
 
 namespace Uji;
 
+[Collection(Koleksi.Halaman)]
 public sealed partial class UjiBookmark : IDisposable
 {
     static readonly DateTimeOffset T0 = LayananPalsu.Sekarang;

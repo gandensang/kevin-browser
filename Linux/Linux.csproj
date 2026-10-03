@@ -12,7 +12,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <!-- Rilis = NativeAOT: satu binary ~4 MB tanpa runtime .NET terpasang.
+  <!-- Rilis = NativeAOT: satu binary ~5 MB tanpa runtime .NET terpasang.
        Terukur di halaman Google (mode cpu): proses UI 74 MB (AOT) vs 93 MB
        (JIT). Tidak butuh clang; ILCompiler memakai gcc bila clang tidak ada. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Inti/Inti.csproj" />
+    <ProjectReference Include="../Asisten/Asisten.csproj" />
     <PackageReference Include="GirCore.Gtk-4.0" Version="0.8.1" />
     <PackageReference Include="GirCore.WebKit-6.0" Version="0.8.1" />
   </ItemGroup>
