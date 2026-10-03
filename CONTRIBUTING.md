@@ -4,6 +4,15 @@ Thank you for stopping by. Kevin Browser is made for old laptops with little
 RAM, and every bit of help counts: a report from another laptop, a
 measurement, a fix, a translation, or a new feature.
 
+## The one rule
+
+Kevin Browser exists for people whose only laptop is old and slow. So the
+first question for any change is: **what does it cost on a weak laptop?**
+More memory, more CPU, a slower start, more disk writes: each of these is a
+regression, however nice the feature. Prefer the boring fix that saves 30 MB
+over the clever feature that costs 30 MB, and measure both. If a feature
+can't be made light, it doesn't ship.
+
 ## Getting started
 
 1. For anything bigger than a small fix, open an issue first, so we can agree
@@ -18,8 +27,11 @@ Where help is most wanted:
   (`inxi -Fxz`).
 - **Reducing the memory of WebKit's page processes**, which is still much
   larger than we'd like on heavy sites.
-- **Features from the roadmap** in the README: chess, an assistant inside the
-  browser, and a Windows version.
+- **Less CPU** for video, heavy JavaScript, and idle pages: old processors
+  have none to spare.
+- **A Windows version**, since many old laptops run Windows.
+- **Features from the roadmap** (chess, an assistant inside the browser), but
+  only in a form a weak laptop can carry.
 - **Translations and writing**: the built-in pages exist in Indonesian and
   English.
 

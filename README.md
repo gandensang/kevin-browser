@@ -36,6 +36,21 @@ ships as a single 4.9 MB file for Linux.
 >
 > If you also use an old laptop, this browser is for you too.
 
+## The one rule
+
+Kevin Browser doesn't chase features. It chases one thing: **the web should
+work on the laptop you already have, even if it's old and slow.**
+
+Kevin isn't the only one. All around the world there are families in the
+same situation: a second-hand laptop, little RAM, an old processor, maybe an
+old spinning hard drive. They don't need a cleverer browser. They need one
+that works.
+
+So every change is judged by a single question: *does it make Kevin Browser
+work better on a weak laptop?* A clever feature that costs memory is a step
+backwards. A boring fix that saves memory or CPU is a step forward. We would
+rather leave a feature out than make the browser heavier.
+
 ## This is where you come in
 
 Kevin Browser is small, young, and open source. It won't change the whole
@@ -54,7 +69,7 @@ You don't have to be a WebKit expert to help:
 - **Bring an idea.** The top menu bar is deliberately kept almost empty: a
   blank space reserved for whatever will make Kevin Browser truly its own.
   Chess and an in-browser assistant are the first two ideas on the list.
-  Yours could be the third.
+  Yours could be the third, as long as a weak laptop can carry it.
 - **Fix a bug, translate a page, or improve the docs.**
 
 Open an issue to talk it through, in English or Indonesian. When you're ready
@@ -64,15 +79,27 @@ you don't have to.
 
 ## Roadmap
 
-- **An assistant that works inside the browser.** Agentic features: not just
-  answering questions, but helping get things done in the page you're on.
-  Its form is still being designed.
-- **Chess.** Chess is our children's hobby, so something chess-related is
-  coming. What form it takes is still open. Maybe that's where you come in.
-- **A Windows version.** The browser's logic already lives in a separate
-  library (`Inti/`) so it can be reused with WebView2.
+**First, and always: run well on weak laptops.**
+
+- **Real old hardware.** So far Kevin Browser has mostly been measured on a
+  single developer laptop. It needs testing on 2 GB machines, old processors,
+  old graphics cards, and spinning hard drives, and fixes for whatever breaks
+  there. This is the most valuable help right now.
 - **Less memory per page.** On heavy sites, WebKit's page processes are still
-  bigger than we'd like. Ideas welcome.
+  bigger than we'd like.
+- **Less CPU.** Video, heavy JavaScript, and even idle pages cost processor
+  time that an old laptop doesn't have.
+- **A Windows version**, because many old laptops run Windows. The browser's
+  logic already lives in a separate library (`Inti/`) so it can be reused
+  with WebView2.
+
+**Later, and only if they stay light:**
+
+- **Chess.** Chess is our children's hobby, so something chess-related will
+  come, in a form a weak laptop can carry.
+- **An assistant that works inside the browser.** Not just answering
+  questions, but helping get things done in the page you're on, as long as it
+  costs the laptop next to nothing.
 
 ## What makes it light
 
