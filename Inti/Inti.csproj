@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Logika yang tidak menyentuh GTK/WebKit. Dipakai ulang apa adanya kalau
+       nanti ada versi Windows (WebView2), dan bisa dites tanpa membuka jendela. -->
+  <PropertyGroup>
+    <RootNamespace>KevinBrowser</RootNamespace>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- Daftar TLD resmi IANA. Perbarui dengan:
+       curl -o Inti/tld.txt https://data.iana.org/TLD/tlds-alpha-by-domain.txt -->
+  <ItemGroup>
+    <EmbeddedResource Include="tld.txt" LogicalName="KevinBrowser.tld.txt" />
+    <!-- Halaman bawaan kevin:// (lihat HalamanBawaan.cs), dan versi Inggrisnya di en/. -->
+    <EmbeddedResource Include="Halaman/*" LogicalName="Halaman/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Halaman/en/*" LogicalName="Halaman/en/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

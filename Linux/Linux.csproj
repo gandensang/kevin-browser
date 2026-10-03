@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Setelan umum (TargetFramework, Nullable, dll) ada di Directory.Build.props. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>KevinBrowser.Linux</RootNamespace>
+    <AssemblyName>kevin-browser</AssemblyName>
+    <!-- Tanpa thread GC latar: heap proses UI kecil, jeda GC tidak terasa. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <!-- Pointer fungsi untuk Sinyal.cs (callback sinyal GObject tanpa GirCore). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Rilis = NativeAOT: satu binary ~4 MB tanpa runtime .NET terpasang.
+       Terukur di halaman Google (mode cpu): proses UI 74 MB (AOT) vs 93 MB
+       (JIT). Tidak butuh clang; ILCompiler memakai gcc bila clang tidak ada. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <PublishAot>true</PublishAot>
+    <StripSymbols>true</StripSymbols>
+  </PropertyGroup>
+
+  <!-- Khusus Linux. GirCore menandai API WebKit "tidak didukung di Windows/
+       macOS"; tanpa ini tiap pemanggilannya jadi galat CA1416. -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+      <_Parameter1>linux</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Inti/Inti.csproj" />
+    <PackageReference Include="GirCore.Gtk-4.0" Version="0.8.1" />
+    <PackageReference Include="GirCore.WebKit-6.0" Version="0.8.1" />
+  </ItemGroup>
+
+</Project>

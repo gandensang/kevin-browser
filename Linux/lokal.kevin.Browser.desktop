@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Kevin Browser
+GenericName=Peramban Web
+Comment=Peramban ringan yang hemat RAM
+Exec=kevin-browser %U
+Icon=web-browser
+Terminal=false
+StartupNotify=true
+StartupWMClass=kevin-browser
+Categories=Network;WebBrowser;
+MimeType=text/html;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;

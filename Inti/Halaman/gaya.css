@@ -1,0 +1,400 @@
+/* Gaya halaman bawaan kevin://. Sengaja polos: tanpa font unduhan, gambar,
+   bayangan, atau blur — browser ini menggambar di CPU, dan halaman ini yang
+   pertama dibuka di laptop yang RAM-nya kecil. Warnanya dari papan catur. */
+
+:root {
+  color-scheme: light dark;
+  --latar: #fbf8f3;
+  --permukaan: #ffffff;
+  --teks: #2b2622;
+  --redup: #6b625a;
+  --garis: #e7ddd0;
+  --aksen: #94562a;
+  --sorot: #f3e4cc;
+  --petak-terang: #f0d9b5;
+  --petak-gelap: #b58863;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --latar: #1b1916;
+    --permukaan: #24211d;
+    --teks: #ece6dd;
+    --redup: #a89f93;
+    --garis: #3a342d;
+    --aksen: #e3b27c;
+    --sorot: #3a2f25;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  background: var(--latar);
+  color: var(--teks);
+  font-family: "Noto Sans", Ubuntu, Cantarell, "DejaVu Sans", sans-serif;
+  line-height: 1.65;
+}
+
+a { color: var(--aksen); text-underline-offset: 0.18em; }
+
+/* Kepala dan menu */
+
+.kepala { background: var(--permukaan); border-bottom: 1px solid var(--garis); }
+
+.kepala .wadah {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0.7rem 1.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.6rem;
+}
+
+.merek {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--teks);
+  font-weight: 700;
+  font-size: 1.08rem;
+  text-decoration: none;
+}
+
+.lencana {
+  display: inline-grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.55rem;
+  background: var(--petak-gelap);
+  color: #fffaf2;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.kepala nav { display: flex; flex-wrap: wrap; gap: 0.15rem; }
+
+.kepala nav a {
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.5rem;
+  color: var(--redup);
+  font-size: 0.93rem;
+  text-decoration: none;
+}
+
+.kepala nav a:hover { color: var(--teks); background: var(--sorot); }
+.kepala nav a[aria-current="page"] { color: var(--teks); background: var(--sorot); font-weight: 600; }
+
+/* Tempat untuk fitur yang akan datang: bergaris putus-putus sampai fiturnya ada. */
+.kepala nav a.segera { border: 1px dashed var(--garis); padding: calc(0.3rem - 1px) calc(0.7rem - 1px); }
+
+/* Isi */
+
+main { max-width: 760px; margin: 0 auto; padding: 2.2rem 1.2rem 3rem; }
+
+h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 0.8rem; }
+h2 { font-size: 1.25rem; margin: 2.2rem 0 0.6rem; }
+p, ul { margin: 0 0 1rem; }
+li { margin-bottom: 0.45rem; }
+
+.pembuka { font-size: 1.15rem; color: var(--redup); }
+
+code, pre {
+  font-family: "Noto Sans Mono", "Ubuntu Mono", "DejaVu Sans Mono", monospace;
+  font-size: 0.9em;
+  background: var(--sorot);
+  border-radius: 0.35rem;
+}
+
+code { padding: 0.1em 0.35em; }
+pre { padding: 0.8rem 1rem; overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; margin: 0 0 1rem; font-size: 0.95rem; }
+th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--garis); }
+th { color: var(--redup); font-weight: 600; }
+td.angka, th.angka { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  padding: 0.05em 0.45em;
+  border: 1px solid var(--garis);
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  background: var(--permukaan);
+  white-space: nowrap;
+}
+
+.catatan { font-size: 0.88rem; color: var(--redup); }
+
+/* Kartu */
+
+.kartu-kartu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.kartu {
+  background: var(--permukaan);
+  border: 1px solid var(--garis);
+  border-radius: 0.9rem;
+  padding: 1.1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.kartu-kartu .kartu { margin-bottom: 0; }
+.kartu h2 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+.kartu p { margin: 0; color: var(--redup); font-size: 0.95rem; }
+.kartu strong { color: var(--teks); }
+
+/* Beranda */
+
+main.beranda { max-width: 900px; padding-top: 0; }
+
+.sambutan {
+  position: relative;
+  margin: 0 -1.2rem;
+  padding: 3.2rem 1.2rem 2.6rem;
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Papan catur samar di belakang judul, memudar ke tepi. Satu lapisan di
+   bawah isi; lapisan gradasi pertama menutupi papan di bagian pinggir. */
+.sambutan::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 35%, var(--latar) 72%),
+    repeating-conic-gradient(color-mix(in srgb, var(--petak-gelap) 13%, transparent) 0 25%, transparent 0 50%) 50% 0 / 56px 56px;
+}
+
+.sambutan > * { position: relative; z-index: 1; }
+
+.lencana.besar { width: 4.6rem; height: 4.6rem; border-radius: 1.2rem; font-size: 3rem; margin-bottom: 1rem; }
+
+.sambutan h1 { font-size: 2.6rem; margin-bottom: 0.3rem; }
+.sambutan .pembuka { margin-bottom: 1.8rem; }
+
+.cari { display: flex; gap: 0.5rem; max-width: 560px; margin: 0 auto; }
+
+.cari input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--teks);
+  background: var(--permukaan);
+  border: 1px solid var(--garis);
+  border-radius: 999px;
+  padding: 0.7rem 1.2rem;
+}
+
+.cari input:focus { outline: 2px solid var(--aksen); outline-offset: 1px; }
+
+.cari button {
+  font: inherit;
+  font-weight: 600;
+  color: #fffaf2;
+  background: var(--petak-gelap);
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+}
+
+.cari button:hover { background: var(--aksen); }
+
+.tautan-lanjut { text-align: center; }
+
+/* Daftar kelebihan/kekurangan */
+
+.daftar { list-style: none; padding: 0; }
+.daftar li { position: relative; padding-left: 1.7rem; }
+.daftar li::before { position: absolute; left: 0; font-weight: 700; }
+.daftar.plus li::before { content: "+"; color: #3f8f5a; }
+.daftar.minus li::before { content: "−"; color: #c0563f; }
+
+/* Pengaturan dan riwayat */
+
+.pesan {
+  background: var(--sorot);
+  border-left: 4px solid var(--petak-gelap);
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+}
+
+fieldset {
+  border: 1px solid var(--garis);
+  border-radius: 0.8rem;
+  padding: 0.5rem 1rem 0.7rem;
+  margin: 0 0 1rem;
+}
+
+legend { color: var(--redup); font-size: 0.9rem; padding: 0 0.3rem; }
+fieldset label { display: block; padding: 0.25rem 0; cursor: pointer; }
+input[type="radio"], input[type="checkbox"] { accent-color: var(--petak-gelap); }
+
+.tombol {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 1.2rem;
+  border: 1px solid var(--garis);
+  border-radius: 999px;
+  background: var(--permukaan);
+  color: var(--teks);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tombol:hover { background: var(--sorot); }
+.tombol.utama { background: var(--petak-gelap); border-color: transparent; color: #fffaf2; }
+.tombol.utama:hover { background: var(--aksen); }
+.tombol.bahaya { background: #b5452f; border-color: transparent; color: #fff; }
+.tombol.bahaya:hover { background: #9a3a28; }
+.tombol-tombol { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+/* Pilihan bahasa di Pengaturan: satu baris, pilihan berjarak. */
+.bahasa { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.4rem; }
+.bahasa label { cursor: pointer; }
+
+.cari.kiri { margin: 0 0 1rem; max-width: none; }
+
+.riwayat { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+
+.riwayat li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin: 0;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--garis);
+}
+
+.riwayat .jam { flex: none; width: 3.2rem; color: var(--redup); font-variant-numeric: tabular-nums; }
+.riwayat .judul { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.riwayat .domain {
+  flex: none;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--redup);
+  font-size: 0.85rem;
+}
+
+.riwayat .hapus { flex: none; padding: 0 0.3rem; color: var(--redup); text-decoration: none; }
+.riwayat .hapus:hover { color: #c0563f; }
+
+/* Bookmark: pintasan di beranda dan daftar di kevin://bookmark */
+
+.tengah { text-align: center; }
+
+.pintasan {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.4rem;
+}
+
+.pintasan a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.93rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--garis);
+  border-radius: 0.8rem;
+  background: var(--permukaan);
+  color: var(--teks);
+  text-decoration: none;
+}
+
+.pintasan a:hover { background: var(--sorot); }
+.pintasan a span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.92rem; }
+
+.huruf {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--petak-gelap);
+  color: #fffaf2;
+  font-weight: 700;
+}
+
+.huruf.terang { background: var(--petak-terang); color: #5a3a1f; }
+
+.bookmark { list-style: none; padding: 0; margin: 1rem 0 1.5rem; }
+
+.bookmark li {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--garis);
+}
+
+.bookmark form { flex: 1; display: flex; gap: 0.5rem; min-width: 0; }
+
+.bookmark input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--garis);
+  border-radius: 0.5rem;
+  background: var(--permukaan);
+  color: var(--teks);
+}
+
+.bookmark .tombol { padding: 0.35rem 0.9rem; font-size: 0.9rem; }
+
+.bookmark .domain {
+  flex: none;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.bookmark .hapus { flex: none; padding: 0 0.3rem; color: var(--redup); text-decoration: none; font-size: 1.2rem; }
+.bookmark .hapus:hover { color: #c0563f; }
+
+/* Kaki */
+
+.kaki {
+  border-top: 1px solid var(--garis);
+  padding: 1.2rem;
+  text-align: center;
+  color: var(--redup);
+  font-size: 0.85rem;
+}
+
+/* Halaman tentang browser ini, di bawah: menu atas disimpan untuk fitur. */
+.kaki nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem 1.2rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.92rem;
+}
+
+.kaki nav a { color: var(--redup); text-decoration: none; }
+.kaki nav a:hover, .kaki nav a[aria-current="page"] { color: var(--teks); text-decoration: underline; }
+.kaki p { margin: 0; }

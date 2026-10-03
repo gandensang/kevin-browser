@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Inti/Inti.csproj" />
+  <Project Path="Linux/Linux.csproj" />
+  <Project Path="Uji/Uji.csproj" />
+</Solution>

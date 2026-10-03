@@ -1,0 +1,6 @@
+Types: deb
+URIs: https://gandensang.github.io/kevin-browser-apt
+Suites: stabil
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/kevin-browser.gpg
