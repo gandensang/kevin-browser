@@ -131,7 +131,7 @@ public sealed partial class HalamanCatur
               </form>
             </section>
             </div>
-            <p class="catatan kaki-latihan">{t["Pelatih:", "Coach:"]} {HtmlEncode(sesi.Model)} · <a href="{HalamanBawaan.Belajar}?ai">{t["ubah", "change"]}</a> · {t[$"dinilai {MesinCatur.Nama} di laptop ini", $"judged by {MesinCatur.Nama} on this laptop"]} · <a href="{Alamat}?mesin">{t["tentang mesinnya", "about the engine"]}</a><br>{t[
+            <p class="catatan kaki-latihan">{t["Pelatih:", "Coach:"]} {HtmlEncode(sesi.Model)}{t[", mode berpikir", ", thinking mode"]} · {t[$"dinilai {MesinCatur.Nama} di laptop ini", $"judged by {MesinCatur.Nama} on this laptop"]} · <a href="{Alamat}?mesin">{t["tentang mesinnya", "about the engine"]}</a><br>{t[
                 "Jawabanmu dan posisi papan dikirim ke DeepSeek; obrolannya tidak disimpan, hasilnya bisa disimpan ke catatan.",
                 "Your answers and the board position are sent to DeepSeek; the chat isn't kept, but the results can be saved as a note."]}</p>
             <script type="application/json" id="data-latihan">{DataLatihan(t, sesi, alamat)}</script>

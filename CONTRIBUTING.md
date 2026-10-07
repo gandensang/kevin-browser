@@ -122,10 +122,12 @@ the address to the window that's already open.
   illegal move); a numbered move in the answer ("16... Bd6") must have
   appeared with that number and side in an evaluated line, not just be
   legal somewhere; and an answer cut off mid-word is asked for again. The
-  coach uses DeepSeek's thinking mode: slower and pricier, but measured
-  against real games it was the difference between misreading the
-  student's line, giving in to a wrong objection, or inventing defences,
-  and getting all of these right.
+  coach always uses deepseek-v4-pro in DeepSeek's thinking mode
+  (`PelatihCatur.ModelPelatih`), whatever model is chosen for questions in
+  Learn, and this is deliberately not a setting: slower and pricier, but
+  measured against real games it was the difference between misreading
+  the student's line, giving in to a wrong objection, or inventing
+  defences, and getting all of these right.
   `MesinCatur` ("chess engine") downloads Stockfish's WebAssembly build once,
   when the user presses Install, checks its SHA-256 fingerprints, and keeps
   it in the data folder; it is GPL-3.0 and never part of our package. It runs

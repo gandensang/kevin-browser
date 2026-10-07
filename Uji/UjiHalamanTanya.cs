@@ -257,6 +257,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
     {
         var form = await Html("kevin://belajar?ai");
         Assert.Contains("<select name=\"model-tanya\"><option value=\"deepseek-v4-pro\">", form);
+        Assert.Contains("Pelatih catur selalu memakai deepseek-v4-pro dengan mode berpikir", form);   // tidak ikut pilihan ini
         Assert.Contains("<option value=\"deepseek-flash\" selected>", form);
 
         var hasil = await Html("kevin://belajar?ai", Post(("aksi", "simpan"), ("token", Ambil(Token(), form)),

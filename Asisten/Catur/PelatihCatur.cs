@@ -41,7 +41,7 @@ public sealed record BalasanPelatih(string? Siswa, IReadOnlyList<TugasMesin>? Tu
 /// tab yang ditidurkan lalu dibangunkan bisa melanjutkannya; yang perlu
 /// disimpan masuk ke catatan partai itu.
 /// </summary>
-public sealed class SesiLatihan(Partai partai, bool putih, string model)
+public sealed class SesiLatihan(Partai partai, bool putih)
 {
     internal readonly object Gembok = new();
 
@@ -49,7 +49,7 @@ public sealed class SesiLatihan(Partai partai, bool putih, string model)
     public Partai Partai => partai;
     public UraianPartai Uraian { get; } = partai.Urai();
     public bool Putih => putih;
-    public string Model => model;
+    public string Model => PelatihCatur.ModelPelatih;
 
     /// <summary>Gelembung obrolan (HTML) dari awal, untuk ditampilkan lagi.</summary>
     public List<string> Transkrip { get; } = [];
@@ -164,10 +164,27 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
     // tapi menyesatkan"): sampai 24 ply per variasi, 10 variasi per
     // panggilan, beberapa panggilan per jawaban.
     public const int MaksPutaranTool = 8;
-    public const int MaksTokenJawaban = 3_000;
 
     /// <summary>
-    /// Dengan mode berpikir, token berpikirnya termasuk batas ini. deepseek-flash
+    /// Model pelatih, selalu dengan mode berpikir DeepSeek, tidak mengikuti
+    /// pilihan model tanya-jawab di kevin://belajar?ai. Keputusan pemakai 7
+    /// Okt 2026: "untuk masalah catur ini wajib pro dan mode berfikir. jangan
+    /// flash apalagi tanpa mode berfikir". Terukur hari itu (DeepSeek
+    /// sungguhan, Stockfish asli, partai killtheclock79–langkahcerdas soal
+    /// 14...): tanpa berpikir, AI salah membaca "jika Bxd6, maka saya Bd6",
+    /// mengaku keliru saat dibantah padahal datanya benar, menyetujui "materi
+    /// imbang" (hitam unggul 2), dan tidak pernah menguji 16. Bxd7 Bd6 walau
+    /// dua kali dikembalikan penjaga; pohon 10 variasi dijawab dangkal (18...
+    /// Bxe4 yang memenangkan menteri dan dua blunder tidak disebut). Dengan
+    /// berpikir semuanya benar. Harganya: bantahan dan cabang Bd6 6–39 →
+    /// 20–69 detik per jawaban, $0,032 → $0,084 sesi itu; pohon 10 variasi 28
+    /// → 76 detik, $0,015 → $0,036. deepseek-flash berpikir lebih murah
+    /// ($0,018 sesi itu) tetapi kurang teliti menafsirkan maksud siswa.
+    /// </summary>
+    public const string ModelPelatih = "deepseek-v4-pro";
+
+    /// <summary>
+    /// Batas token per panggilan; token berpikirnya termasuk. deepseek-flash
     /// pernah berpikir 12.428 token untuk pohon 10 variasi (7 Okt 2026).
     /// </summary>
     public const int MaksTokenBerpikir = 32_000;
@@ -192,22 +209,6 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
     /// </summary>
     public Action<string>? Pencatat { get; init; }
 
-    /// <summary>
-    /// Mode berpikir DeepSeek. Terukur 7 Okt 2026 (DeepSeek sungguhan,
-    /// Stockfish asli, partai killtheclock79–langkahcerdas soal 14...):
-    /// tanpa berpikir, AI salah membaca "jika Bxd6, maka saya Bd6", mengaku
-    /// keliru saat dibantah padahal datanya benar, menyetujui "materi imbang"
-    /// (hitam unggul 2), dan tidak pernah menguji 16. Bxd7 Bd6 walau dua kali
-    /// dikembalikan penjaga; pohon 10 variasi dijawab dangkal (18... Bxe4 yang
-    /// memenangkan menteri dan dua blunder tidak disebut). Dengan berpikir
-    /// semuanya benar. Harganya (deepseek-v4-pro): bantahan dan cabang Bd6
-    /// 6–39 → 20–69 detik per jawaban, $0,032 → $0,084 sesi itu; pohon 10
-    /// variasi 28 → 76 detik, $0,015 → $0,036. deepseek-flash berpikir:
-    /// 11–34 detik, $0,018; pohon 131 detik, $0,033; sedikit kurang teliti
-    /// menafsirkan maksud siswa. Pemakai: "mending jawaban mahal tapi benar".
-    /// </summary>
-    public bool Berpikir { get; init; } = true;
-
     void Catat(string pesan) => Pencatat?.Invoke("[pelatih] " + pesan);
 
     public SesiLatihan? Ambil(string? id)
@@ -218,7 +219,7 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
 
     public SesiLatihan Baru(Partai partai, bool putih)
     {
-        var sesi = new SesiLatihan(partai, putih, pengaturan.ModelTanya);
+        var sesi = new SesiLatihan(partai, putih);
         lock (semua)
         {
             semua.Add(sesi);
@@ -338,7 +339,7 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
                 lock (s.Gembok)
                     pesan = [new("system", PromptLatihan.Sistem(t)), .. s.Pesan];
                 var jawaban = await klien.ChatTool(pengaturan.Alamat, kunci, s.Model, pesan, PromptLatihan.Alat, bolehTool,
-                    Berpikir ? MaksTokenBerpikir : MaksTokenJawaban, batal, Berpikir);
+                    MaksTokenBerpikir, batal, berpikir: true);
                 hitung.Putaran++;
                 hitung.TokenCache += jawaban.TokenCache;
                 hitung.TokenBaru += jawaban.TokenBaru;

@@ -93,6 +93,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
               <label>{t["Model untuk menyerap materi", "Model for turning material into notes"]} <select name="model">{Pilihan(Pengaturan.Model)}</select></label>
               <label>{t["Model untuk tanya-jawab", "Model for questions"]} <select name="model-tanya">{Pilihan(Pengaturan.ModelTanya)}</select></label>
+              <p class="catatan">{t[$"Pelatih catur selalu memakai {PelatihCatur.ModelPelatih} dengan mode berpikir, supaya penjelasannya tepat.", $"The chess coach always uses {PelatihCatur.ModelPelatih} with thinking mode, so its explanations are right."]}</p>
               <label>{t["Kunci API", "API key"]} <input type="password" name="kunci" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
               <p class="catatan">{t["Kosongkan kalau kuncinya tidak diganti.", "Leave empty to keep the current key."]}</p>
               <p class="tombol-tombol"><button class="tombol utama" type="submit">{t["Simpan", "Save"]}</button></p>

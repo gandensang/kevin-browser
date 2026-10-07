@@ -133,6 +133,9 @@ public sealed partial class UjiHalamanCatur
         Assert.Contains("Posisi berikutnya", html);
         Assert.DoesNotContain("Petunjuk", html);
         Assert.Matches(Sesi(), html);
+        // Model pelatih terkunci (keputusan pemakai), jadi tidak ada tautan "ubah".
+        Assert.Contains("Pelatih: deepseek-v4-pro, mode berpikir · dinilai Stockfish 19 di laptop ini", html);
+        Assert.DoesNotContain("belajar?ai", html);
 
         Assert.Contains("class=\"kolom-papan terbalik\"", await Html(Latihan + "&sisi=hitam"));
     }
@@ -167,7 +170,10 @@ public sealed partial class UjiHalamanCatur
 
         var pertama = PesanDeepSeek(0);
         Assert.Contains("pelatih catur", pertama[0].GetProperty("content").GetString());
-        // Mode berpikir: tanpa itu DeepSeek salah membaca jawaban siswa (lihat PelatihCatur.Berpikir).
+        // Selalu deepseek-v4-pro dengan mode berpikir, walau model tanya-jawab
+        // di pengaturan deepseek-flash (lihat PelatihCatur.ModelPelatih).
+        Assert.Equal("deepseek-flash", layanan.PengaturanAi.ModelTanya);
+        Assert.Equal("deepseek-v4-pro", BadanDeepSeek(0).GetProperty("model").GetString());
         Assert.Equal("enabled", BadanDeepSeek(0).GetProperty("thinking").GetProperty("type").GetString());
         Assert.Equal(PelatihCatur.MaksTokenBerpikir, BadanDeepSeek(0).GetProperty("max_tokens").GetInt32());
         var konteks = pertama[1].GetProperty("content").GetString()!;
@@ -214,7 +220,7 @@ public sealed partial class UjiHalamanCatur
         Assert.Equal(HalamanBelajar.Alamat(catatan), Ambil(Pindah(), simpan));
         var isi = layanan.Catatan.Baca("catur", catatan.Nama)!;
         Assert.Contains("## Pelajaran\n\n### Tebak langkah, 1 Okt 2026\n\n"
-            + "Sebagai putih, dinilai Stockfish 19, dijelaskan deepseek-flash: 1 posisi penting; sama dengan partai 0, setara 0, lebih baik 0, lebih buruk 1.\n\n"
+            + "Sebagai putih, dinilai Stockfish 19, dijelaskan deepseek-v4-pro: 1 posisi penting; sama dengan partai 0, setara 0, lebih baik 0, lebih buruk 1.\n\n"
             + "- [4. Qxe5+](kevin://catur?partai=lichess-abcdEFGH#6): lebih buruk dari partai (4. Qf3), blunder, peluang menang −45%. "
             + "⚙️ Terbaik: 4. Qf3 Nf6. FEN `" + FenSoal + "` **Pelajaran:** sebelum memakan, periksa siapa yang menjaga petak itu.\n", isi);
         Assert.DoesNotContain("(Tulis sendiri", isi);
@@ -330,7 +336,7 @@ public sealed partial class UjiHalamanCatur
         Assert.Contains("pion hitam d4 (oleh menteri d3, kuda f3)", serangan);
 
         var sesi = new SesiLatihan(Pgn.Pisah("1. Nf3 Nf6 2. c4 e6 3. a3 b6 4. Nc3 Bb7 5. e4 Be7 6. e5 Ne4 7. Nxe4 Bxe4 8. Qe2 Bb7 9. d4 O-O 10. Qd3 c5 11. Be2 Nc6 12. O-O Qc7 13. Bd1 cxd4 14. Ba4 Nxe5 *").Single(),
-            false, "deepseek-flash") { Soal = 27 };
+            false) { Soal = 27 };
         var sesudah = PelatihCatur.LihatPosisi(sesi, """{"langkah":"Nxe5"}""", t);
         Assert.Contains("Hitam menyerang: pion putih a3 (oleh gajah e7); menteri putih d3 (oleh kuda e5); kuda putih f3 (oleh kuda e5, gajah b7); pion putih c4 (oleh kuda e5, menteri c7).", sesudah);
         Assert.Contains("Diserang lawan tanpa pelindung: menteri putih d3, pion hitam d4.", sesudah);
