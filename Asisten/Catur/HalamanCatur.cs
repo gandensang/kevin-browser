@@ -75,7 +75,7 @@ public sealed partial class HalamanCatur(KoleksiPartai koleksi, MesinCatur mesin
             });
         if (kueri["mesin"] is not null && kueri["pasang"] is not null && isiPost is not null)
             return await PasangLewatSkrip(kueri, t);
-        if (kueri["latihan"] is not null && isiPost is not null && (kueri["soal"] ?? kueri["kirim"] ?? kueri["lanjut"]) is not null)
+        if (kueri["latihan"] is not null && isiPost is not null && (kueri["soal"] ?? kueri["kirim"] ?? kueri["lanjut"] ?? kueri["selesai"]) is not null)
             return await DataLatihan(kueri, t);
         return null;
     }

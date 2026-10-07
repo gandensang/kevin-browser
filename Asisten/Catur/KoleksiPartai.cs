@@ -86,6 +86,9 @@ public sealed class KoleksiPartai(string folder, IJaringan jaringan)
 
     public AkunCatur Akun { get; } = new(Path.Combine(folder, "akun.tsv"));
 
+    /// <summary>Skor tebak langkah yang sudah selesai, pembanding latihan berikutnya.</summary>
+    public RiwayatSkor Skor { get; } = new(Path.Combine(folder, "skor.tsv"));
+
     string BerkasLichess(string nama) => Path.Combine(folder, $"lichess-{nama.ToLowerInvariant()}.pgn");
 
     string BerkasChessCom(string nama) => Path.Combine(folder, $"chesscom-{nama.ToLowerInvariant()}.pgn");

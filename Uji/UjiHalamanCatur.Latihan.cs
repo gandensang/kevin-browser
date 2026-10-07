@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using KevinBrowser;
@@ -219,11 +220,123 @@ public sealed partial class UjiHalamanCatur
         var catatan = Assert.Single(layanan.Catatan.Semua());
         Assert.Equal(HalamanBelajar.Alamat(catatan), Ambil(Pindah(), simpan));
         var isi = layanan.Catatan.Baca("catur", catatan.Nama)!;
-        Assert.Contains("## Pelajaran\n\n### Tebak langkah, 1 Okt 2026\n\n"
+        Assert.Contains("## Pelajaran\n\n### Tebak langkah, 1 Okt 2026 09.00\n\n"
             + "Sebagai putih, dinilai Stockfish 19, dijelaskan deepseek-v4-pro: 1 posisi penting; sama dengan partai 0, setara 0, lebih baik 0, lebih buruk 1.\n\n"
             + "- [4. Qxe5+](kevin://catur?partai=lichess-abcdEFGH#6): lebih buruk dari partai (4. Qf3), blunder, peluang menang −45%. "
             + "⚙️ Terbaik: 4. Qf3 Nf6. FEN `" + FenSoal + "` **Pelajaran:** sebelum memakan, periksa siapa yang menjaga petak itu.\n", isi);
         Assert.DoesNotContain("(Tulis sendiri", isi);
+    }
+
+    // Skor hanya ditunjukkan sesudah partai habis, tetapi dihitung sejak soal
+    // pertama. Soal yang ditinggalkan tanpa jawaban 0 poin; langkah partainya
+    // tetap dinilai sebagai pembanding. Hasilnya tersimpan sendiri ke catatan,
+    // satu bagian per latihan walau sebelumnya sudah disimpan manual.
+    [Fact]
+    public async Task LatihanSelesaiDenganSkorDanKesimpulan()
+    {
+        await SiapkanLatihan(deepseek:
+        [
+            JaringanPalsu.Tool(null, ("cek_variasi", """{"utama":"Qf3"}""")),
+            JaringanPalsu.Tool("Tepat, **4. Qf3** sama dengan partai.\n\nPelajaran: lindungi menteri sambil mengancam."),
+            JaringanPalsu.Tool("Kamu menemukan langkah terbaik di soal pertama, tetapi melewatkan soal kedua."),
+        ]);
+        layanan.Partai.Skor.Tambah(LayananPalsu.Sekarang.AddDays(-1), "lichess-lain", true,
+            new SkorLatihan(Soal: 3, Poin: 6, Dilewati: 0, PoinPartai: 3, SoalPartai: 3));   // latihan sebelumnya 67%
+        var html = await Html(Latihan);
+        var alamat = $"{Latihan}&sisi=putih&sesi={Sesi().Match(html).Groups[1].Value}";
+
+        await Data(alamat + "&soal", "ply=6");
+        var ai = (await Data(alamat + "&kirim", Post(("pesan", "Qf3"), ("awal", """[{"uci":"h5f3","cp":-20,"mat":null,"pv":"h5f3 g8f6"}]""")))).GetProperty("ai").GetString()!;
+        Assert.DoesNotContain("Skor", ai);   // selama latihan skornya tidak ditunjukkan
+
+        // Disimpan manual di tengah latihan: tanpa skor.
+        var simpan = await Html(alamat, Post(("aksi", "simpan"), ("token", Ambil(Token(), await Html(alamat)))));
+        var catatan = Assert.Single(layanan.Catatan.Semua());
+        Assert.Equal(HalamanBelajar.Alamat(catatan), Ambil(Pindah(), simpan));
+        Assert.DoesNotContain("Skor", layanan.Catatan.Baca("catur", catatan.Nama));
+
+        // Soal kedua (sebelum 5. g4) ditinggalkan tanpa jawaban, lalu partainya habis.
+        await Data(alamat + "&soal", "ply=8");
+        const string awal = """[{"uci":"b1c3","cp":-150,"mat":null,"pv":"b1c3 f6g4"},{"uci":"g2g4","cp":-99998,"mat":-2,"pv":"g2g4 d8h4"}]""";
+        var akhir = (await Data(alamat + "&selesai", Post(("awal", awal)))).GetProperty("html").GetString()!;
+        Assert.Contains("<strong>Partai selesai.</strong> <strong>Skor: 3 dari 6</strong> (2 soal, 1 dilewati, 50%). "
+            + "Langkah yang dimainkan di partai: 3 dari 6 (50%). Latihan sebelumnya: 67%.", akhir);
+        Assert.Contains("melewatkan soal kedua", akhir);
+        Assert.Contains($"Hasilnya tersimpan di <a href=\"{WebUtility.HtmlEncode(HalamanBelajar.Alamat(catatan))}\">catatan partai ini</a>.", akhir);
+
+        // Kesimpulan: satu panggilan v4-pro berpikir, tanpa tool, dari data yang sudah dihitung.
+        var badan = BadanDeepSeek(2);
+        Assert.False(badan.TryGetProperty("tools", out _));
+        Assert.Equal(("deepseek-v4-pro", "enabled"), (badan.GetProperty("model").GetString(), badan.GetProperty("thinking").GetProperty("type").GetString()));
+        var data = badan.GetProperty("messages")[1].GetProperty("content").GetString()!;
+        Assert.Contains("Partai ini dimainkan siswa sendiri (akun kevin_uji), jadi langkah di partai adalah langkahnya sendiri saat bermain.", data);
+        Assert.Contains("Skor: 3 dari 6 (2 soal, 1 dilewati, 50%).", data);
+        Assert.Contains("Pembanding latihan sebelumnya kasar", data);
+        Assert.Contains("- Soal 1, langkah 4: jawaban 4. Qf3, langkah yang baik, peluang menang −0%, 3 poin; langkah partai 4. Qf3 (3 poin); "
+            + "⚙️ terbaik 4. Qf3 Nf6; pelajaran: lindungi menteri sambil mengancam.", data);
+        Assert.Contains("- Soal 2, langkah 5: dilewati, 0 poin; langkah partai 5. g4 (0 poin); ⚙️ terbaik 5. Nc3 Ng4", data);
+
+        // Catatan: bagian yang sama diganti (satu bagian), sekarang dengan skor dan kesimpulan.
+        var isi = layanan.Catatan.Baca("catur", catatan.Nama)!;
+        Assert.Equal(1, Regex.Count(isi, "### Tebak langkah"));
+        Assert.Contains("### Tebak langkah, 1 Okt 2026 09.00\n\n"
+            + "Sebagai putih, dinilai Stockfish 19, dijelaskan deepseek-v4-pro: 2 posisi penting; sama dengan partai 1, setara 0, lebih baik 0, lebih buruk 0, dilewati 1.\n\n"
+            + "**Skor: 3 dari 6** (2 soal, 1 dilewati, 50%). Langkah yang dimainkan di partai: 3 dari 6 (50%). Latihan sebelumnya: 67%.\n\n"
+            + "**Kesimpulan pelatih:** Kamu menemukan langkah terbaik di soal pertama, tetapi melewatkan soal kedua.\n\n"
+            + "- [4. Qf3](kevin://catur?partai=lichess-abcdEFGH#6): sama dengan partai, langkah yang baik. FEN `" + FenSoal + "` **Pelajaran:** lindungi menteri sambil mengancam.\n"
+            + "- [5. ?](kevin://catur?partai=lichess-abcdEFGH#8): dilewati; di partai 5. g4. ⚙️ Terbaik: 5. Nc3 Ng4.", isi);
+        Assert.Equal((2, 58), layanan.Partai.Skor.RataRata(5));   // 67% dan 50%
+
+        // Sekali saja: tidak ada penilaian kedua, dan obrolannya tetap memuatnya.
+        var lagi = await Data(alamat + "&selesai", Post(("awal", "")));
+        Assert.True(lagi.GetProperty("selesai").GetBoolean());
+        Assert.False(lagi.TryGetProperty("html", out _));
+        Assert.Equal(3, layanan.Jaringan.Permintaan.Count(p => p.Alamat.StartsWith("https://api.deepseek.com", StringComparison.Ordinal)));
+        Assert.Contains("Skor: 3 dari 6", await Html(alamat));
+    }
+
+    // Semua soal dilewati: skornya tetap ditunjukkan, tanpa kesimpulan AI,
+    // dan tidak ada yang disimpan.
+    [Fact]
+    public async Task LatihanTanpaJawabanTidakDisimpan()
+    {
+        await SiapkanLatihan(deepseek: [JaringanPalsu.Tool("tidak dipakai")]);
+        var html = await Html(Latihan);
+        var alamat = $"{Latihan}&sisi=putih&sesi={Sesi().Match(html).Groups[1].Value}";
+        await Data(alamat + "&soal", "ply=6");
+        var akhir = (await Data(alamat + "&selesai", Post(("awal", """[{"uci":"h5f3","cp":-20,"mat":null,"pv":"h5f3 g8f6"}]""")))).GetProperty("html").GetString()!;
+        Assert.Contains("<strong>Skor: 0 dari 3</strong> (1 soal, 1 dilewati, 0%). Langkah yang dimainkan di partai: 3 dari 3 (100%).", akhir);
+        Assert.Contains("Semua soal dilewati", akhir);
+        Assert.Empty(layanan.Catatan.Semua());
+        Assert.Null(layanan.Partai.Skor.RataRata(5));
+        Assert.DoesNotContain(layanan.Jaringan.Permintaan, p => p.Alamat.StartsWith("https://api.deepseek.com", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(0, 3)]
+    [InlineData(4, 3)]
+    [InlineData(5, 2)]
+    [InlineData(9, 2)]
+    [InlineData(10, 1)]
+    [InlineData(19, 1)]
+    [InlineData(20, 0)]
+    [InlineData(45, 0)]
+    public void PoinPerSoal(int hilang, int poin) => Assert.Equal(poin, PelatihCatur.Poin(hilang));
+
+    // Satu latihan satu bagian: judul yang sama diganti sampai judul berikutnya,
+    // bagian lain dan isi di bawahnya tetap. Latihan lain di menit yang sama
+    // mendapat judul bernomor.
+    [Fact]
+    public void BagianLatihanDiganti()
+    {
+        var t = new Teks(Bahasa.Indonesia);
+        const string isi = "# Partai\n\n## Pelajaran\n\n### Tebak langkah, 1 Okt 2026 09.00\n\nlama\n- baris lama\n\n### Tebak langkah, 2 Okt 2026 10.00\n\nlain\n";
+        Assert.Equal("# Partai\n\n## Pelajaran\n\n### Tebak langkah, 1 Okt 2026 09.00\n\nbaru\n\n### Tebak langkah, 2 Okt 2026 10.00\n\nlain\n",
+            HalamanCatur.GantiBagian(t, isi, "### Tebak langkah, 1 Okt 2026 09.00\n\nbaru\n"));
+        Assert.EndsWith("lain\n\n### Tebak langkah, 3 Okt 2026 08.00\n\nketiga\n",
+            HalamanCatur.GantiBagian(t, isi, "### Tebak langkah, 3 Okt 2026 08.00\n\nketiga\n"));
+        Assert.Equal("### Tebak langkah, 1 Okt 2026 09.00 (2)", HalamanCatur.JudulBagian(t, isi, LayananPalsu.Sekarang));
+        Assert.Equal("### Tebak langkah, 1 Okt 2026 09.00", HalamanCatur.JudulBagian(t, "", LayananPalsu.Sekarang));
     }
 
     // Variasi panjang: setiap langkah diperiksa, juga yang jauh dari posisi
@@ -651,6 +764,8 @@ public sealed partial class UjiHalamanCatur
     [InlineData("Bagus.\n\nPelajaran: kuasai pusat dulu.", "kuasai pusat dulu.")]
     [InlineData("Bagus.\n\n**Pelajaran:** kuasai pusat dulu.", "kuasai pusat dulu.")]
     [InlineData("Good.\nLesson: control the centre.", "control the centre.")]
+    [InlineData("Bagus.\n\nPelajaran: periksa skakmat dulu. Mau lanjut ke posisi berikutnya?", "periksa skakmat dulu.")]
+    [InlineData("Pelajaran: kenapa kuda di tepi lemah?", "kenapa kuda di tepi lemah?")]
     [InlineData("Belum ada pelajaran di sini.", null)]
     public void PelajaranDariJawaban(string teks, string? harapan) => Assert.Equal(harapan, PelatihCatur.Pelajaran(teks));
 

@@ -241,10 +241,18 @@
     papan.gambar(PapanCatur.isi(fenSebelum(ply)), sorot);
   }
 
+  // Analisis soal sekarang kalau belum pernah terkirim (soal ditinggalkan
+  // tanpa pesan): langkah partainya tetap dinilai untuk pembanding skor.
+  async function awalBelumTerkirim() {
+    return data.soal >= 0 && data.perluAwal
+      ? JSON.stringify(await (analisisAwal || Promise.resolve([])).catch(() => []))
+      : '';
+  }
+
   // Soal di posisi sebelum ply itu: gelembungnya dari HalamanCatur, lalu
   // Stockfish menganalisisnya selagi siswa menulis.
   async function tanyakan(ply) {
-    const r = await kirimData('soal', { ply });
+    const r = await kirimData('soal', { ply, awal: await awalBelumTerkirim() });
     hapusStatus();
     if (r.galat) {
       info(r.galat, 'galat');
@@ -282,12 +290,29 @@
     const ply = await (berikutnya || cariSoal(data.soal + 1, true)).catch(() => null);
     berikutnya = null;
     if (ply === null) {
-      hapusStatus();
-      info(T.selesai);
-      bolehMenulis(data.soal >= 0);
+      await akhiri();
       return;
     }
     await tanyakan(ply);
+  }
+
+  // Partai habis: skor dan kesimpulan pelatih, sekali per latihan (skornya
+  // dihitung sejak soal pertama, tetapi baru ditunjukkan di sini), lalu
+  // HalamanCatur menyimpan hasilnya sendiri ke catatan partai.
+  async function akhiri() {
+    sibuk = true;
+    status(T.menilai);
+    const r = await kirimData('selesai', { awal: await awalBelumTerkirim() });
+    hapusStatus();
+    if (r.html)
+      tambah(r.html);
+    else
+      info(T.selesai);
+    if (r.galat)
+      info(r.galat, 'galat');
+    sibuk = false;
+    bolehMenulis(data.soal >= 0);
+    tBerikutnya.disabled = mesinGagal;
   }
 
   async function kirim() {

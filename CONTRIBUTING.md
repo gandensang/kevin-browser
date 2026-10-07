@@ -127,7 +127,16 @@ the address to the window that's already open.
   Learn, and this is deliberately not a setting: slower and pricier, but
   measured against real games it was the difference between misreading
   the student's line, giving in to a wrong objection, or inventing
-  defences, and getting all of these right.
+  defences, and getting all of these right. A session is scored from the
+  first question, but the score is only shown once the game has no more
+  important positions: 3 points per question for the best move or one
+  within 5% winning chance of it, down to 0 for a mistake or a skipped
+  question, compared with the moves played in the game (same positions,
+  same difficulty) and with the student's previous sessions
+  (`catur/skor.tsv`), never with a rating. The code computes all the
+  numbers; one more AI call writes a short conclusion from them, and the
+  results are saved to the game's note automatically, one section per
+  session (saving again replaces it).
   `MesinCatur` ("chess engine") downloads Stockfish's WebAssembly build once,
   when the user presses Install, checks its SHA-256 fingerprints, and keeps
   it in the data folder; it is GPL-3.0 and never part of our package. It runs

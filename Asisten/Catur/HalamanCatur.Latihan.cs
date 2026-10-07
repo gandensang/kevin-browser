@@ -219,8 +219,9 @@ public sealed partial class HalamanCatur
         ("menguji", t["Stockfish menguji jawabanmu… {0}/{1}", "Stockfish is testing your answer… {0}/{1}"]),
         ("menganalisis", t["Stockfish masih menganalisis posisi ini…", "Stockfish is still analysing this position…"]),
         ("mesinGagal", t["Mesin catur tidak bisa dijalankan. Coba muat ulang halaman ini.", "The chess engine couldn't start. Try reloading this page."]),
-        ("selesai", t["Tidak ada lagi posisi penting untuk sisimu di partai ini. Simpan hasilnya ke catatan, atau coba sebagai sisi lain.",
-            "There are no more important positions for your side in this game. Save the results as a note, or try the other side."]),
+        ("menilai", t["Pelatih menyusun penilaian latihanmu… (bisa sampai satu menit)", "The coach is putting your results together… (this can take a minute)"]),
+        ("selesai", t["Tidak ada lagi posisi penting untuk sisimu di partai ini. Coba sebagai sisi lain, atau latih partai lain.",
+            "There are no more important positions for your side in this game. Try the other side, or practise another game."]),
         ("putus", t["Pelatih tidak bisa dihubungi. Coba kirim lagi.", "Couldn't reach the coach. Try sending again."]),
     ];
 
@@ -236,15 +237,19 @@ public sealed partial class HalamanCatur
 
     // ---------- data untuk latihan.js ----------
 
-    // POST dari latihan.js (fetch): soal baru, pesan siswa, hasil Stockfish.
+    // POST dari latihan.js (fetch): soal baru, pesan siswa, hasil Stockfish,
+    // dan akhir latihan. "awal" di soal dan selesai: analisis soal yang
+    // ditinggalkan tanpa pesan, supaya langkah partainya tetap dinilai.
     async Task<(byte[], string)?> DataLatihan(Kueri kueri, Teks t)
     {
         if (pelatih?.Ambil(kueri["sesi"]) is not { } sesi || sesi.Partai.Id != kueri["latihan"])
             return Json(json => json.WriteString("galat", t["Sesi latihan ini sudah tidak ada. Muat ulang halamannya.", "This practice session is gone. Reload the page."]));
         if (kueri["soal"] is not null)
-            return int.TryParse(kueri["ply"], out var ply) && pelatih.Soal(sesi, ply, t) is { } html
+            return int.TryParse(kueri["ply"], out var ply) && pelatih.Soal(sesi, ply, t, kueri["awal"]) is { } html
                 ? Json(json => json.WriteString("html", html))
                 : Json(json => json.WriteString("galat", t["Soal itu tidak bisa ditanyakan.", "That question can't be asked."]));
+        if (kueri["selesai"] is not null)
+            return await AkhiriLatihan(sesi, kueri["awal"], t);
         // Dengan mode berpikir satu panggilan bisa 1–2 menit (pohon 10 variasi:
         // ±5.000–12.000 token berpikir), dan penjaga bisa menambah putaran;
         // paling banyak PelatihCatur.MaksPutaranTool putaran per permintaan.
@@ -280,24 +285,109 @@ public sealed partial class HalamanCatur
         return (aliran.ToArray(), "application/json");
     }
 
+    // Partai habis (latihan.js tidak menemukan posisi penting lagi): skor
+    // ditetapkan, pelatih menulis kesimpulan, hasilnya tersimpan sendiri ke
+    // catatan partai, dan skornya masuk riwayat. Sekali per latihan; sesudah
+    // itu jawabannya {"selesai": true} saja. Latihan yang semua soalnya
+    // dilewati tidak disimpan dan tidak masuk riwayat.
+    async Task<(byte[], string)> AkhiriLatihan(SesiLatihan sesi, string? awal, Teks t)
+    {
+        if (pelatih!.Akhiri(sesi, awal, koleksi.Skor.RataRata(5)) is not { } skor)
+            return Json(json => json.WriteBoolean("selesai", sesi.Selesai));
+        string? galat = null, alamatCatatan = null, html;
+        try
+        {
+            using var batas = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            try
+            {
+                // Tanpa akun yang dihubungkan (PGN tempelan) tidak diketahui siapa pemainnya.
+                await pelatih.BuatKesimpulan(sesi, koleksi.Akun.Ada ? SisiSaya(sesi.Partai) == sesi.Putih : null, t, batas.Token);
+            }
+            catch (Exception e)
+            {
+                galat = e switch
+                {
+                    GalatAi g => Penyerap.PesanGalat(t, g),
+                    OperationCanceledException => t["Kesimpulan pelatih terlalu lama dan dibatalkan.", "The coach's conclusion took too long and was cancelled."],
+                    _ => t[$"Kesimpulan pelatih tidak bisa dibuat: {e.Message}", $"The coach's conclusion couldn't be written: {e.Message}"],
+                };
+            }
+            if (skor.Dilewati < skor.Soal)
+            {
+                if (SimpanLatihan(t, sesi.Partai, sesi) is { } catatan)
+                    alamatCatatan = HalamanBelajar.Alamat(catatan);
+                else
+                    galat ??= t["Hasilnya tidak bisa disimpan ke catatan.", "The results couldn't be saved as a note."];
+                koleksi.Skor.Tambah(waktu.GetUtcNow(), sesi.Partai.Id, sesi.Putih, skor);
+            }
+        }
+        finally
+        {
+            html = pelatih.TutupLatihan(sesi, alamatCatatan, t);
+        }
+        return Json(json =>
+        {
+            json.WriteString("html", html);
+            if (galat is not null)
+                json.WriteString("galat", galat);
+        });
+    }
+
     // ---------- simpan ke catatan ----------
 
     // Hasil latihan masuk ke catatan partai ini (dibuat kalau belum ada).
+    // Satu latihan = satu bagian: simpan berikutnya (manual, atau otomatis
+    // saat latihan selesai) mengganti bagian itu, tidak menambah yang baru.
     // Kalau berkasnya kebetulan diubah aplikasi lain di antara baca dan tulis,
     // dicoba sekali lagi dengan isi terbarunya.
     Catatan? SimpanLatihan(Teks t, Partai p, SesiLatihan sesi)
     {
-        var bagian = BagianLatihan(t, p, sesi);
         for (var coba = 0; coba < 2; coba++)
         {
-            if (CariCatatan(p) is not { } ada)
-                return buku.Tulis(MapelCatur, JudulCatatan(t, p), TambahPelajaran(t, IsiCatatan(t, p), bagian), waktu.GetLocalNow().DateTime);
-            var sidik = buku.Sidik(ada.Mapel, ada.Nama);
-            if (buku.Baca(ada.Mapel, ada.Nama) is { } isi
-                && buku.Simpan(ada.Mapel, ada.Nama, TambahPelajaran(t, isi, bagian), sidik) == HasilSimpan.Tersimpan)
+            var ada = CariCatatan(p);
+            var sidik = ada is null ? null : buku.Sidik(ada.Mapel, ada.Nama);
+            if ((ada is null ? IsiCatatan(t, p) : buku.Baca(ada.Mapel, ada.Nama)) is not { } isi)
+                continue;
+            string judul;
+            lock (sesi.Gembok)
+                judul = sesi.JudulBagian ??= JudulBagian(t, isi, waktu.GetLocalNow());
+            var baru = GantiBagian(t, isi, BagianLatihan(t, p, sesi, judul));
+            if (ada is null)
+                return buku.Tulis(MapelCatur, JudulCatatan(t, p), baru, waktu.GetLocalNow().DateTime);
+            if (buku.Simpan(ada.Mapel, ada.Nama, baru, sidik!) == HasilSimpan.Tersimpan)
                 return ada;
         }
         return null;
+    }
+
+    // "### Tebak langkah, 1 Okt 2026 09.00": jamnya membedakan latihan di
+    // hari yang sama; kalau tetap kembar dengan bagian yang sudah ada (latihan
+    // lain di menit yang sama), diberi nomor.
+    internal static string JudulBagian(Teks t, string isi, DateTimeOffset sekarang)
+    {
+        var dasar = $"### {t["Tebak langkah", "Guess the move"]}, {t.TanggalSingkat(sekarang.DateTime)} {t.Jam(sekarang)}";
+        var ada = isi.Replace("\r\n", "\n").Split('\n').Select(b => b.TrimEnd()).ToHashSet();
+        var judul = dasar;
+        for (var i = 2; ada.Contains(judul); i++)
+            judul = $"{dasar} ({i})";
+        return judul;
+    }
+
+    // Bagian berjudul sama (latihan yang sama) diganti sampai judul berikutnya;
+    // kalau belum ada, bagiannya ditambahkan di bawah Pelajaran.
+    internal static string GantiBagian(Teks t, string isi, string bagian)
+    {
+        var judul = bagian[..bagian.IndexOf('\n')].TrimEnd();
+        var baris = isi.Replace("\r\n", "\n").Split('\n').ToList();
+        var mulai = baris.FindIndex(b => b.TrimEnd() == judul);
+        if (mulai < 0)
+            return TambahPelajaran(t, isi, bagian);
+        var akhir = mulai + 1;
+        while (akhir < baris.Count && !baris[akhir].StartsWith("## ", StringComparison.Ordinal) && !baris[akhir].StartsWith("### ", StringComparison.Ordinal))
+            akhir++;
+        baris.RemoveRange(mulai, akhir - mulai);
+        baris.InsertRange(mulai, [.. bagian.TrimEnd().Split('\n'), ""]);
+        return string.Join('\n', baris).TrimEnd() + "\n";
     }
 
     // Menambahkan bagian di akhir catatan, di bawah judul Pelajaran (dibuat
@@ -315,26 +405,50 @@ public sealed partial class HalamanCatur
         return $"{teks}\n\n{bagian.Trim()}\n";
     }
 
-    // Satu bagian per latihan: ringkasan, lalu tiap posisi dengan tebakan,
-    // penilaian, ⚙️ langkah terbaik, FEN, dan pelajaran dari pelatih, supaya
-    // catatannya tetap berguna tanpa browser ini (seperti catatan catur KEVIN).
-    string BagianLatihan(Teks t, Partai p, SesiLatihan sesi)
+    // Satu bagian per latihan: ringkasan (dengan skor dan kesimpulan kalau
+    // latihannya sudah selesai), lalu tiap posisi dengan tebakan, penilaian,
+    // ⚙️ langkah terbaik, FEN, dan pelajaran dari pelatih, supaya catatannya
+    // tetap berguna tanpa browser ini (seperti catatan catur KEVIN). Skor
+    // hanya ditulis sesudah latihan selesai, sama dengan di obrolan.
+    string BagianLatihan(Teks t, Partai p, SesiLatihan sesi, string judul)
     {
         var u = sesi.Uraian;
         List<HasilSoal> hasil;
+        List<int> ditanya;
+        List<SoalDilewati> dilewati;
         lock (sesi.Gembok)
-            hasil = [.. sesi.Hasil.OrderBy(h => h.Ply)];
-        int Jumlah(string banding) => hasil.Count(h => h.Banding == banding);
-
-        var sb = new StringBuilder($"### {t["Tebak langkah", "Guess the move"]}, {t.TanggalSingkat(waktu.GetLocalNow().DateTime)}\n\n");
-        sb.Append(t[$"Sebagai {(sesi.Putih ? "putih" : "hitam")}, dinilai {MesinCatur.Nama}, dijelaskan {sesi.Model}: {hasil.Count} posisi penting; sama dengan partai {Jumlah("sama")}, setara {Jumlah("setara")}, lebih baik {Jumlah("lebih-baik")}, lebih buruk {Jumlah("lebih-buruk")}.",
-            $"As {(sesi.Putih ? "white" : "black")}, judged by {MesinCatur.Nama}, explained by {sesi.Model}: {hasil.Count} important {(hasil.Count == 1 ? "position" : "positions")}; same as the game {Jumlah("sama")}, equal {Jumlah("setara")}, better {Jumlah("lebih-baik")}, worse {Jumlah("lebih-buruk")}."]).Append("\n\n");
-        foreach (var h in hasil)
         {
-            var posisi = Papan.DariFen(h.Ply == 0 ? u.FenAwal : u.Langkah[h.Ply - 1].Fen)!;
+            hasil = [.. sesi.Hasil];
+            ditanya = [.. sesi.Ditanya.Where(ply => ply != sesi.Soal || sesi.Selesai || hasil.Any(h => h.Ply == ply))];
+            dilewati = [.. sesi.Dilewati];
+        }
+        int Jumlah(string banding) => hasil.Count(h => h.Banding == banding);
+        var lewat = ditanya.Count(ply => !hasil.Any(h => h.Ply == ply));
+
+        var sb = new StringBuilder($"{judul}\n\n");
+        sb.Append(t[$"Sebagai {(sesi.Putih ? "putih" : "hitam")}, dinilai {MesinCatur.Nama}, dijelaskan {sesi.Model}: {ditanya.Count} posisi penting; sama dengan partai {Jumlah("sama")}, setara {Jumlah("setara")}, lebih baik {Jumlah("lebih-baik")}, lebih buruk {Jumlah("lebih-buruk")}{(lewat > 0 ? $", dilewati {lewat}" : "")}.",
+            $"As {(sesi.Putih ? "white" : "black")}, judged by {MesinCatur.Nama}, explained by {sesi.Model}: {ditanya.Count} important {(ditanya.Count == 1 ? "position" : "positions")}; same as the game {Jumlah("sama")}, equal {Jumlah("setara")}, better {Jumlah("lebih-baik")}, worse {Jumlah("lebih-buruk")}{(lewat > 0 ? $", skipped {lewat}" : "")}."]).Append("\n\n");
+        if (sesi.Selesai && sesi.Skor is { } skor)
+        {
+            sb.Append(PelatihCatur.TeksSkor(t, skor, sesi.LatihanLalu)).Append("\n\n");
+            if (sesi.Kesimpulan is { } kesimpulan)
+                sb.Append($"**{t["Kesimpulan pelatih", "The coach's conclusion"]}:** {kesimpulan.Trim()}\n\n");
+        }
+        foreach (var ply in ditanya)
+        {
+            var posisi = Papan.DariFen(ply == 0 ? u.FenAwal : u.Langkah[ply - 1].Fen)!;
+            var partai = Label(posisi, u.Langkah[ply].San);
+            if (hasil.FirstOrDefault(h => h.Ply == ply) is not { } h)
+            {
+                sb.Append($"- [{posisi.NomorLangkah}{(posisi.GiliranPutih ? "." : "...")} ?]({Alamat}?partai={Uri.EscapeDataString(p.Id)}#{ply}): ")
+                    .Append(t[$"dilewati; di partai {partai}.", $"skipped; the game went {partai}."]);
+                if (dilewati.FirstOrDefault(d => d.Ply == ply)?.Terbaik is { Length: > 0 } terbaikLewat && Variasi(posisi, terbaikLewat, 6) is { Length: > 0 } garis)
+                    sb.Append($" ⚙️ {t["Terbaik", "Best"]}: {garis}.");
+                sb.Append($" FEN `{posisi.Fen()}`\n");
+                continue;
+            }
             if (posisi.DariNotasi(h.Tebakan) is not { } tebakan)
                 continue;
-            var partai = Label(posisi, u.Langkah[h.Ply].San);
             sb.Append($"- [{Label(posisi, posisi.San(tebakan))}]({Alamat}?partai={Uri.EscapeDataString(p.Id)}#{h.Ply}): ")
                 .Append(h.Banding switch
                 {

@@ -25,6 +25,27 @@ public sealed record HasilSoal(int Ply, string Tebakan, string Banding, string J
 {
     /// <summary>Baris "Pelajaran: …" terakhir dari penjelasan AI untuk soal ini.</summary>
     public string? Pelajaran { get; set; }
+
+    /// <summary>Peluang menang yang hilang oleh langkah partai di posisi ini (pembanding skor).</summary>
+    public int? HilangPartai { get; init; }
+}
+
+/// <summary>
+/// Soal yang ditinggalkan tanpa jawaban yang dinilai: 0 poin. Langkah
+/// partainya tetap dinilai (<see cref="HilangPartai"/>), untuk pembanding.
+/// </summary>
+public sealed record SoalDilewati(int Ply, int? HilangPartai, string Terbaik);
+
+/// <summary>
+/// Skor satu latihan: 3 poin per soal (<see cref="PelatihCatur.Poin"/>),
+/// soal yang dilewati 0. <see cref="PoinPartai"/>: langkah yang dimainkan di
+/// partai, dinilai sama, di <see cref="SoalPartai"/> soal yang nilainya ada.
+/// </summary>
+public sealed record SkorLatihan(int Soal, int Poin, int Dilewati, int PoinPartai, int SoalPartai)
+{
+    public int Maks => Soal * 3;
+    public int Persen => Maks == 0 ? 0 : (int)Math.Round(100.0 * Poin / Maks);
+    public int PersenPartai => SoalPartai == 0 ? 0 : (int)Math.Round(100.0 * PoinPartai / (SoalPartai * 3));
 }
 
 /// <summary>
@@ -94,6 +115,29 @@ public sealed class SesiLatihan(Partai partai, bool putih)
     /// ("=Bxd6"). Lihat PelatihCatur.BelumDiperiksa.
     /// </summary>
     internal HashSet<string> Diperiksa { get; } = [];
+
+    /// <summary>Soal yang ditinggalkan tanpa jawaban yang dinilai.</summary>
+    public List<SoalDilewati> Dilewati { get; } = [];
+
+    /// <summary>
+    /// Latihan sudah diakhiri (partai habis): skor dan kesimpulan sudah
+    /// ditampilkan sekali dan tidak berubah lagi.
+    /// </summary>
+    public bool Selesai { get; internal set; }
+
+    /// <summary>Skor akhir; null sebelum latihan selesai. Selama latihan skornya tidak ditunjukkan.</summary>
+    public SkorLatihan? Skor { get; internal set; }
+
+    public string? Kesimpulan { get; internal set; }
+
+    /// <summary>Latihan sebelumnya saat latihan ini selesai (banyaknya, rata-rata persen), pembanding skor.</summary>
+    public (int Jumlah, int Persen)? LatihanLalu { get; internal set; }
+
+    /// <summary>
+    /// Judul bagian latihan ini di catatan partai, sesudah tersimpan sekali:
+    /// simpan berikutnya mengganti bagian itu, tidak menambah bagian baru.
+    /// </summary>
+    internal string? JudulBagian { get; set; }
 
     internal bool Sibuk { get; set; }
 
@@ -234,16 +278,22 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
     /// gelembung pertanyaannya masuk transkrip. Null kalau ply itu bukan
     /// langkah sisi siswa sesudah soal sebelumnya.
     /// </summary>
-    public string? Soal(SesiLatihan s, int ply, Teks t)
+    /// <remarks>
+    /// <paramref name="awalSebelumnya"/>: analisis posisi soal sekarang dari
+    /// halaman, kalau soal itu ditinggalkan sebelum ada pesan (lihat
+    /// <see cref="CatatDilewati"/>).
+    /// </remarks>
+    public string? Soal(SesiLatihan s, int ply, Teks t, string? awalSebelumnya = null)
     {
         lock (s.Gembok)
         {
             var u = s.Uraian;
-            if (s.Sibuk || s.Tunda is not null || ply < 0 || ply >= u.Langkah.Count || ply <= s.Soal)
+            if (s.Sibuk || s.Tunda is not null || s.Selesai || ply < 0 || ply >= u.Langkah.Count || ply <= s.Soal)
                 return null;
             var posisi = Papan.DariFen(ply == 0 ? u.FenAwal : u.Langkah[ply - 1].Fen)!;
             if (posisi.GiliranPutih != s.Putih)
                 return null;
+            CatatDilewati(s, awalSebelumnya);
             s.Soal = ply;
             s.Ditanya.Add(ply);
             s.Pesan.Clear();
@@ -511,6 +561,217 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
         }
     }
 
+    // ---------- skor akhir ----------
+
+    /// <summary>
+    /// Poin satu soal dari peluang menang yang hilang dibanding langkah
+    /// terbaik: di bawah 5% (terbaik atau sama kuat) 3, di bawah 10% (baik)
+    /// 2, di bawah 20% (ketidaktepatan) 1, selebihnya (kesalahan, blunder) 0.
+    /// Disetujui pemakai 7 Okt 2026, bersama aturan bahwa skor dihitung sejak
+    /// soal pertama tetapi baru ditunjukkan sesudah semua soal di partai itu
+    /// selesai, supaya siswa tidak terpaku pada skornya.
+    /// </summary>
+    public static int Poin(int hilang) => hilang < 5 ? 3 : hilang < 10 ? 2 : hilang < 20 ? 1 : 0;
+
+    // Soal sekarang ditinggalkan tanpa jawaban yang dinilai: dicatat
+    // dilewati (0 poin). Nilai langkah partainya dari analisis awal yang
+    // sudah datang bersama pesan pertama, atau yang dikirim halaman sekarang.
+    static void CatatDilewati(SesiLatihan s, string? awalJson)
+    {
+        if (s.Soal < 0 || s.Hasil.Any(h => h.Ply == s.Soal) || s.Dilewati.Any(d => d.Ply == s.Soal))
+            return;
+        var nilai = s.Awal.Count > 0 ? s.Awal : BacaNilai(awalJson, s.PosisiSoal);
+        var terbaik = nilai.MaxBy(n => n.Cp);
+        var partai = nilai.FirstOrDefault(n => n.Uci == s.Uraian.Langkah[s.Soal].Langkah.Uci);
+        s.Dilewati.Add(new(s.Soal,
+            terbaik is null || partai is null ? null : (int)Math.Round(Math.Max(0, Peluang(terbaik.Cp) - Peluang(partai.Cp))),
+            terbaik is null ? "" : string.Join(' ', terbaik.Pv.Take(8))));
+    }
+
+    /// <summary>Skor semua soal yang sudah ditanyakan; soal tanpa jawaban yang dinilai 0 poin.</summary>
+    internal static SkorLatihan HitungSkor(SesiLatihan s)
+    {
+        lock (s.Gembok)
+        {
+            int poin = 0, dilewati = 0, poinPartai = 0, soalPartai = 0;
+            foreach (var ply in s.Ditanya)
+            {
+                int? hilangPartai;
+                if (s.Hasil.FirstOrDefault(h => h.Ply == ply) is { } h)
+                {
+                    poin += Poin(h.Hilang);
+                    hilangPartai = h.HilangPartai;
+                }
+                else
+                {
+                    dilewati++;
+                    hilangPartai = s.Dilewati.FirstOrDefault(d => d.Ply == ply)?.HilangPartai;
+                }
+                if (hilangPartai is { } hp)
+                {
+                    poinPartai += Poin(hp);
+                    soalPartai++;
+                }
+            }
+            return new(s.Ditanya.Count, poin, dilewati, poinPartai, soalPartai);
+        }
+    }
+
+    /// <summary>
+    /// Mengakhiri latihan karena partainya habis: soal terakhir yang belum
+    /// dijawab dicatat dilewati, lalu skornya ditetapkan. Sesi sibuk sampai
+    /// <see cref="TutupLatihan"/>. Null kalau pelatih masih bekerja,
+    /// latihannya sudah diakhiri, atau belum ada soal sama sekali.
+    /// </summary>
+    /// <param name="lalu">Latihan sebelumnya (banyaknya, rata-rata persen), pembanding skor.</param>
+    public SkorLatihan? Akhiri(SesiLatihan s, string? awalJson, (int Jumlah, int Persen)? lalu)
+    {
+        lock (s.Gembok)
+        {
+            if (s.Sibuk || s.Tunda is not null || s.Selesai || s.Ditanya.Count == 0)
+                return null;
+            CatatDilewati(s, awalJson);
+            s.Selesai = true;
+            s.Skor = HitungSkor(s);
+            s.LatihanLalu = lalu;
+            s.Sibuk = true;
+            return s.Skor;
+        }
+    }
+
+    /// <summary>
+    /// Kesimpulan pelatih untuk latihan yang sudah diakhiri: beberapa kalimat
+    /// dari skor, pembandingnya, dan hasil tiap soal. Satu panggilan tanpa
+    /// tool; datanya hanya dari aplikasi. Null kalau tidak ada soal yang
+    /// dijawab.
+    /// </summary>
+    /// <param name="partaiSendiri">Sisi yang dilatih dimainkan akun siswa sendiri (null = tidak diketahui).</param>
+    public async Task<string?> BuatKesimpulan(SesiLatihan s, bool? partaiSendiri, Teks t, CancellationToken batal)
+    {
+        string data;
+        lock (s.Gembok)
+        {
+            if (s.Skor is not { } skor || skor.Dilewati == skor.Soal)
+                return null;
+            data = DataKesimpulan(s, skor, partaiSendiri, t);
+        }
+        var kunci = pengaturan.Kunci ?? throw new GalatAi(401, "");
+        var jawaban = await klien.ChatTool(pengaturan.Alamat, kunci, s.Model, [new("system", PromptLatihan.Kesimpulan(t)), new("user", data)], [],
+            bolehTool: false, MaksTokenBerpikir, batal, berpikir: true);
+        Catat($"kesimpulan ({s.Model}): {jawaban.TokenCache + jawaban.TokenBaru} token masuk ({jawaban.TokenCache} cache), {jawaban.TokenKeluar} keluar, "
+            + $"berhenti: {jawaban.AlasanBerhenti}\n  data: {data}\n  teks: {jawaban.Isi}");
+        var biaya = HargaAi.Biaya(s.Model, jawaban.TokenCache, jawaban.TokenBaru, jawaban.TokenKeluar, waktu.GetUtcNow());
+        lock (s.Gembok)
+        {
+            s.Biaya += biaya;
+            s.Kesimpulan = BuangDataPalsu(jawaban.Isi ?? "") is { Length: > 0 } isi ? isi : null;
+            return s.Kesimpulan;
+        }
+    }
+
+    // Data untuk kesimpulan: skor dan pembandingnya (sudah dihitung), lalu
+    // tiap soal: jawaban siswa dan penilaiannya, langkah partai, langkah
+    // terbaik, dan pelajaran dari pelatih.
+    // Soal dinomori seperti di obrolan ("Soal 2, langkah 11"): tanpa itu AI
+    // menyebut nomor langkah sebagai nomor soal ("soal 10 dan 14", DeepSeek
+    // sungguhan, 7 Okt 2026). Siapa yang memainkan partai ikut disebut, supaya
+    // "langkah di partai" tidak disebut langkah siswa kalau partainya orang lain.
+    static string DataKesimpulan(SesiLatihan s, SkorLatihan skor, bool? partaiSendiri, Teks t)
+    {
+        var u = s.Uraian;
+        var sisi = s.Putih ? t["putih", "white"] : t["hitam", "black"];
+        var pemain = s.Putih ? s.Partai.Putih : s.Partai.Hitam;
+        var sb = new StringBuilder(t[$"Partai: {s.Partai.Putih} (putih) vs {s.Partai.Hitam} (hitam). Siswa berlatih sebagai {sisi}.\n",
+            $"Game: {s.Partai.Putih} (white) vs {s.Partai.Hitam} (black). The student practises as {sisi}.\n"]);
+        sb.Append(partaiSendiri switch
+        {
+            true => t[$"Partai ini dimainkan siswa sendiri (akun {pemain}), jadi langkah di partai adalah langkahnya sendiri saat bermain.\n",
+                $"The student played this game themselves (account {pemain}), so the game moves are their own moves at the time.\n"],
+            false => t[$"Partai ini dimainkan orang lain ({pemain}); langkah di partai bukan langkah siswa.\n",
+                $"Someone else played this game ({pemain}); the game moves aren't the student's.\n"],
+            _ => "",
+        });
+        sb.Append(TeksSkor(t, skor, s.LatihanLalu).Replace("**", "")).Append('\n');
+        if (s.LatihanLalu is not null)
+            sb.Append(t["Pembanding latihan sebelumnya kasar: tiap latihan hanya beberapa soal dengan tingkat sulit berbeda.\n",
+                "The comparison with earlier sessions is rough: each session has only a few questions of different difficulty.\n"]);
+        sb.Append(t["Tiap soal (3 poin = terbaik atau sama kuat, 2 = baik, 1 = ketidaktepatan, 0 = kesalahan, blunder, atau dilewati):\n",
+            "Each question (3 points = best or just as strong, 2 = good, 1 = inaccuracy, 0 = mistake, blunder, or skipped):\n"]);
+        var nomorSoal = 0;
+        foreach (var ply in s.Ditanya)
+        {
+            var posisi = Papan.DariFen(ply == 0 ? u.FenAwal : u.Langkah[ply - 1].Fen)!;
+            var partai = Label(posisi, u.Langkah[ply].Langkah.Uci);
+            var dilewati = s.Dilewati.FirstOrDefault(d => d.Ply == ply);
+            var hasil = s.Hasil.FirstOrDefault(h => h.Ply == ply);
+            var hilangPartai = hasil?.HilangPartai ?? dilewati?.HilangPartai;
+            var poinPartai = hilangPartai is { } hp ? t[$" ({Poin(hp)} poin)", $" ({Poin(hp)} points)"] : "";
+            nomorSoal++;   // bukan di dalam t[…]: kedua teksnya selalu dibentuk
+            sb.Append(t[$"- Soal {nomorSoal}, langkah {posisi.NomorLangkah}: ", $"- Question {nomorSoal}, move {posisi.NomorLangkah}: "]);
+            if (hasil is not null)
+                sb.Append(t[$"jawaban {Label(posisi, hasil.Tebakan)}, {TeksJenis(t, hasil.Jenis)}, peluang menang −{hasil.Hilang}%, {Poin(hasil.Hilang)} poin",
+                    $"answer {Label(posisi, hasil.Tebakan)}, {TeksJenis(t, hasil.Jenis)}, winning chance −{hasil.Hilang}%, {Poin(hasil.Hilang)} points"]);
+            else
+                sb.Append(t["dilewati, 0 poin", "skipped, 0 points"]);
+            sb.Append(t[$"; langkah partai {partai}{poinPartai}", $"; game move {partai}{poinPartai}"]);
+            if ((hasil?.Terbaik ?? dilewati?.Terbaik) is { Length: > 0 } terbaik)
+                sb.Append(t["; ⚙️ terbaik ", "; ⚙️ best "]).Append(HalamanCatur.Variasi(posisi, terbaik, 4));
+            if (hasil?.Pelajaran is { } pelajaran)
+                sb.Append(t["; pelajaran: ", "; lesson: "]).Append(pelajaran.Replace('\n', ' '));
+            sb.Append('\n');
+        }
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// "**Skor: 10 dari 15** (5 soal, 1 dilewati, 67%). Langkah yang
+    /// dimainkan di partai: 7 dari 15 (47%). 3 latihan sebelumnya: rata-rata
+    /// 58%." Angka 10 saja tidak berarti apa-apa (jumlah soal tiap partai
+    /// berbeda), jadi selalu dengan maksimumnya dan dua pembanding: langkah
+    /// di partai pada posisi yang sama (sama sulitnya), dan latihan siswa
+    /// sendiri sebelumnya. Tanpa perkiraan rating: itu butuh data banyak pemain.
+    /// </summary>
+    internal static string TeksSkor(Teks t, SkorLatihan skor, (int Jumlah, int Persen)? lalu)
+    {
+        var dilewati = skor.Dilewati == 0 ? "" : t[$", {skor.Dilewati} dilewati", $", {skor.Dilewati} skipped"];
+        var sb = new StringBuilder(t[$"**Skor: {skor.Poin} dari {skor.Maks}** ({skor.Soal} soal{dilewati}, {skor.Persen}%).",
+            $"**Score: {skor.Poin} of {skor.Maks}** ({skor.Soal} {(skor.Soal == 1 ? "question" : "questions")}{dilewati}, {skor.Persen}%)."]);
+        if (skor.SoalPartai > 0)
+            sb.Append(t[$" Langkah yang dimainkan di partai: {skor.PoinPartai} dari {skor.SoalPartai * 3} ({skor.PersenPartai}%).",
+                $" The moves played in the game: {skor.PoinPartai} of {skor.SoalPartai * 3} ({skor.PersenPartai}%)."]);
+        if (lalu is { } l)
+            sb.Append(l.Jumlah == 1 ? t[$" Latihan sebelumnya: {l.Persen}%.", $" Previous session: {l.Persen}%."]
+                : t[$" {l.Jumlah} latihan sebelumnya: rata-rata {l.Persen}%.", $" Previous {l.Jumlah} sessions: {l.Persen}% on average."]);
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Gelembung akhir latihan: skor (dihitung aplikasi), kesimpulan pelatih,
+    /// dan tautan ke catatannya. Masuk transkrip; sesi tidak sibuk lagi.
+    /// </summary>
+    public string TutupLatihan(SesiLatihan s, string? alamatCatatan, Teks t)
+    {
+        lock (s.Gembok)
+        {
+            var isi = new StringBuilder(t["**Partai selesai.** ", "**Game over.** "]);
+            if (s.Skor is { } skor)
+                isi.Append(TeksSkor(t, skor, s.LatihanLalu));
+            if (s.Kesimpulan is { } kesimpulan)
+                isi.Append("\n\n").Append(kesimpulan);
+            else if (s.Skor is { } semua && semua.Dilewati == semua.Soal)
+                isi.Append("\n\n").Append(t["Semua soal dilewati, jadi belum ada yang bisa disimpulkan. Coba jawab beberapa soal di latihan berikutnya.",
+                    "Every question was skipped, so there's nothing to conclude yet. Try answering a few in your next session."]);
+            var catatan = alamatCatatan is null ? ""
+                : $"""<p class="catatan">{t["Hasilnya tersimpan di", "The results are saved in"]} <a href="{HtmlEncode(alamatCatatan)}">{t["catatan partai ini", "this game's note"]}</a>.</p>""";
+            var html = $"""
+                <div class="baris-ai">{Avatar}<div class="gelembung ai isi-catatan akhir-latihan">{Markah.KeHtml(isi.ToString(), geserJudul: 2)}{catatan}</div></div>
+                """;
+            s.Transkrip.Add(html);
+            s.Sibuk = false;
+            return html;
+        }
+    }
+
     /// <summary>
     /// Membuang data posisi yang ditulis AI sendiri. AI pernah meniru blok
     /// &lt;&lt;&lt;POSISI … POSISI&gt;&gt;&gt; dan mengarang soal baru (terjadi 7 Okt
@@ -540,7 +801,12 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
             var b = baris.Trim().Trim('*', '_', ' ');
             foreach (var awalan in new[] { "Pelajaran:", "Lesson:" })
                 if (b.StartsWith(awalan, StringComparison.OrdinalIgnoreCase) && b[awalan.Length..].Trim('*', '_', ' ') is { Length: > 0 } isi)
-                    return isi;
+                {
+                    // Pertanyaan penutup di baris yang sama ("… ancaman. Mau lanjut
+                    // ke posisi berikutnya?", terjadi 7 Okt 2026) bukan pelajarannya.
+                    var akhir = isi.LastIndexOf(". ", StringComparison.Ordinal);
+                    return isi.EndsWith('?') && akhir > 0 ? isi[..(akhir + 1)] : isi;
+                }
         }
         return null;
     }
@@ -808,9 +1074,13 @@ public sealed class PelatihCatur(PengaturanAi pengaturan, KlienAi klien, TimePro
                 sb.Append(SeranganLangkah(posisi, utama, t)).Append('\n');
                 if (nu.Pv.Count > 1)
                     sb.Append(t["⚙️ Lanjutan terbaik sesudahnya: ", "⚙️ Best continuation after it: "]).Append(Garis(s, posisi, string.Join(' ', nu.Pv), 8)).Append('\n');
+                // Skornya sudah tetap begitu latihan selesai.
                 lock (s.Gembok)
-                    if (!s.Hasil.Any(h => h.Ply == s.Soal))
-                        s.Hasil.Add(new(s.Soal, utama.Uci, banding, jenis, (int)Math.Round(hilang), string.Join(' ', terbaik.Pv.Take(8))));
+                    if (!s.Selesai && !s.Hasil.Any(h => h.Ply == s.Soal))
+                        s.Hasil.Add(new(s.Soal, utama.Uci, banding, jenis, (int)Math.Round(hilang), string.Join(' ', terbaik.Pv.Take(8)))
+                        {
+                            HilangPartai = np is null ? null : (int)Math.Round(Math.Max(0, atas - Peluang(np.Cp))),
+                        });
             }
             else
                 sb.Append(t["Nilai langkah utama tidak didapat dari Stockfish.", "Stockfish gave no score for the main move."]).Append('\n');
@@ -1665,6 +1935,30 @@ static class PromptLatihan
         "[Automatic message from the app, not from the student] Your answer was cut off mid-sentence and didn't reach the student. Write the complete answer to the student's message above again. The student can't see this message; don't mention it."];
 
     // Jawaban yang menyebut langkah yang belum diuji dikembalikan paling banyak dua kali (PelatihCatur.BelumDiuji).
+    // Penutup latihan (PelatihCatur.BuatKesimpulan). AI hanya menafsirkan
+    // angka dan hasil yang sudah dihitung; ia tidak melihat papan.
+    public static string Kesimpulan(Teks t) => t[
+        """
+        Kamu pelatih catur yang menutup satu sesi latihan tebak langkah. Kamu menerima hasilnya dari aplikasi: skor (dihitung dari penilaian Stockfish), pembandingnya, dan hasil tiap soal. Kamu tidak melihat papan, jadi jangan menambahkan fakta catur apa pun di luar data itu: langkah, variasi, ancaman, atau letak bidak.
+
+        Tulis kesimpulan untuk siswa dalam 3–5 kalimat, bahasa Indonesia sehari-hari yang hangat dan jujur:
+        - apa arti skornya: bandingkan dengan langkah yang dimainkan di partai dan dengan latihan sebelumnya kalau ada, tanpa melebih-lebihkan dan tanpa merendahkan. Satu latihan hanya beberapa soal, jadi perbandingan dengan latihan sebelumnya hanya petunjuk awal, bukan bukti kemajuan atau kemunduran;
+        - kekuatan yang terlihat dari soal yang dijawab baik;
+        - kelemahan yang berulang, dari jenis kesalahan dan pelajaran tiap soal;
+        - satu saran latihan yang konkret.
+        Aplikasi sudah menampilkan angka skornya tepat di atas kesimpulanmu, jadi jangan mengulang semua angkanya. Jangan menyebut rating, tingkat, atau gelar pemain: datanya tidak cukup untuk itu. Sebut soal dengan nomor soal atau nomor langkahnya seperti di data ("soal 2", "langkah 11"). Kalau ada soal yang dilewati, sebut saja tanpa menghakimi. Tanpa judul, tanpa tabel, tanpa daftar.
+        """,
+        """
+        You are a chess coach closing one guess-the-move practice session. The app gives you the results: the score (computed from Stockfish's judgement), what to compare it with, and the result of each question. You can't see the board, so don't add any chess facts beyond that data: moves, lines, threats, or where pieces are.
+
+        Write a conclusion for the student in 3–5 sentences, in warm and honest everyday English:
+        - what the score means: compare it with the moves played in the game and with earlier sessions if there are any, without overstating or belittling. A session has only a few questions, so a comparison with earlier sessions is an early hint, not proof of progress or decline;
+        - the strengths shown by the questions answered well;
+        - recurring weaknesses, from the kinds of mistakes and the lesson of each question;
+        - one concrete training suggestion.
+        The app already shows the score numbers right above your conclusion, so don't repeat them all. Don't mention a rating, a level, or a title: the data isn't enough for that. Refer to questions by their question or move number as in the data ("question 2", "move 11"). If questions were skipped, say so without judging. No headings, no tables, no lists.
+        """];
+
     public static string Koreksi(Teks t, IReadOnlyList<string> asing) => t[
         $"[Pesan otomatis dari aplikasi, bukan dari siswa] Sebelum menjawab siswa, periksa dulu langkah-langkah ini dengan lihat_posisi atau cek_variasi (letak bidak, sah tidaknya, nilainya), karena belum muncul di data posisi atau hasil tool: {string.Join(", ", asing)}. Lalu jawab pesan siswa di atas berdasarkan hasilnya; kalau langkah itu ternyata tidak sah atau keliru, jangan dipakai. Siswa tidak melihat pesan ini, jadi jangan menyinggungnya dan jangan meminta maaf karenanya.",
         $"[Automatic message from the app, not from the student] Before answering the student, check these moves with lihat_posisi or cek_variasi (piece placement, legality, score), because they haven't appeared in the position data or tool results: {string.Join(", ", asing)}. Then answer the student's message above based on the results; if a move turns out illegal or wrong, don't use it. The student can't see this message, so don't mention it and don't apologize for it."];

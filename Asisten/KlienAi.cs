@@ -239,21 +239,25 @@ public sealed class KlienAi(IJaringan jaringan)
                 json.WriteEndObject();
             }
             json.WriteEndArray();
-            json.WriteStartArray("tools");
-            foreach (var a in alat)
+            // Tanpa tool sama sekali (mis. kesimpulan latihan catur): kolomnya tidak ditulis.
+            if (alat.Count > 0)
             {
-                json.WriteStartObject();
-                json.WriteString("type", "function");
-                json.WriteStartObject("function");
-                json.WriteString("name", a.Nama);
-                json.WriteString("description", a.Keterangan);
-                json.WritePropertyName("parameters");
-                json.WriteRawValue(a.Skema);
-                json.WriteEndObject();
-                json.WriteEndObject();
+                json.WriteStartArray("tools");
+                foreach (var a in alat)
+                {
+                    json.WriteStartObject();
+                    json.WriteString("type", "function");
+                    json.WriteStartObject("function");
+                    json.WriteString("name", a.Nama);
+                    json.WriteString("description", a.Keterangan);
+                    json.WritePropertyName("parameters");
+                    json.WriteRawValue(a.Skema);
+                    json.WriteEndObject();
+                    json.WriteEndObject();
+                }
+                json.WriteEndArray();
+                json.WriteString("tool_choice", bolehTool ? "auto" : "none");
             }
-            json.WriteEndArray();
-            json.WriteString("tool_choice", bolehTool ? "auto" : "none");
             json.WriteStartObject("thinking");
             json.WriteString("type", berpikir ? "enabled" : "disabled");
             json.WriteEndObject();
