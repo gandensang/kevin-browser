@@ -146,8 +146,10 @@ public sealed partial class UjiHalamanCatur : IDisposable
         Assert.Contains("\"dari\":\"e2\",\"ke\":\"e4\",\"nilai\":0.2}", html);
         Assert.Contains("\"mat\":-2}", html);
         Assert.Contains("<script src=\"kevin://catur.js\"></script>", html);
-        Assert.Contains("href=\"https://lichess.org/abcdEFGH\"", html);
+        // Situs luar dibuka di tab baru (target=_blank → Tab.BukaTabTerkait).
+        Assert.Contains("href=\"https://lichess.org/abcdEFGH\" target=\"_blank\" rel=\"noopener\"", html);
         Assert.Contains("Buka di Lichess</a>", html);
+        Assert.Contains("<a id=\"analisis\" href=\"https://lichess.org/analysis\" target=\"_blank\" rel=\"noopener\">", html);
 
         Assert.Contains("Partai tidak ditemukan", await Html("kevin://catur?partai=lichess-tidakada"));
     }

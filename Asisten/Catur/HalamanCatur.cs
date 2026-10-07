@@ -281,8 +281,9 @@ public sealed partial class HalamanCatur(KoleksiPartai koleksi, MesinCatur mesin
             <a class="tombol utama" href="{HtmlEncode($"{Alamat}?latihan={Uri.EscapeDataString(p.Id)}")}">{Ikon.Tebak}{t["Tebak langkah", "Guess the move"]}</a>
             <form action="{HtmlEncode($"{Alamat}?partai={Uri.EscapeDataString(p.Id)}")}" method="post"><input type="hidden" name="aksi" value="simpan"><input type="hidden" name="token" value="{TokenSekali.Buat()}"><button class="tombol" type="submit">{Ikon.Buku}{t["Simpan ke catatan", "Save as a note"]}</button></form>
             """);
+        // Situs catur dibuka di tab baru, supaya pemutar partai tetap ada (permintaan pemakai 7 Okt 2026).
         if (p.Tautan is { } tautan)
-            aksi.Append($"""<a class="tombol" href="{HtmlEncode(tautan)}">{Ikon.Keluar}{(p.Id.StartsWith("chesscom-", StringComparison.Ordinal) ? t["Buka di Chess.com", "Open on Chess.com"] : t["Buka di Lichess", "Open on Lichess"])}</a>""");
+            aksi.Append($"""<a class="tombol" href="{HtmlEncode(tautan)}" target="_blank" rel="noopener">{Ikon.Keluar}{(p.Id.StartsWith("chesscom-", StringComparison.Ordinal) ? t["Buka di Chess.com", "Open on Chess.com"] : t["Buka di Lichess", "Open on Lichess"])}</a>""");
 
         var isi = new StringBuilder($"""
             <header class="kepala-partai">
@@ -315,7 +316,7 @@ public sealed partial class HalamanCatur(KoleksiPartai koleksi, MesinCatur mesin
 
                 """)
             .Append($"""<p id="komentar" class="komentar" hidden></p>""").Append('\n')
-            .Append($"""<p class="catatan"><a id="analisis" href="https://lichess.org/analysis">{Ikon.Keluar}{t["Analisis posisi ini di Lichess", "Analyse this position on Lichess"]}</a></p>""").Append('\n')
+            .Append($"""<p class="catatan"><a id="analisis" href="https://lichess.org/analysis" target="_blank" rel="noopener">{Ikon.Keluar}{t["Analisis posisi ini di Lichess", "Analyse this position on Lichess"]}</a></p>""").Append('\n')
             .Append("</aside>\n</div>\n")
             .Append("""<script type="application/json" id="data-partai">""").Append(DataPartai(u, balik)).Append("</script>\n")
             .Append(Tautan()).Append('\n')
