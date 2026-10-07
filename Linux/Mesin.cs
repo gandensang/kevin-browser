@@ -98,8 +98,10 @@ static class Mesin
 #endif
         var alat = new AlatSerap(new PengaturanAi(Path.Combine(folderData, BerkasAsisten), alamatAi), new JaringanSoup(),
             GLib.Functions.GetUserSpecialDir(GLib.UserDirectory.DirectoryDownload) ?? GLib.Functions.GetHomeDir(), TeksPdf.Ambil);
-        var belajar = new HalamanBelajar(new BukuCatatan(FolderCatatan()), TimeProvider.System, BukaFolder, alat);
-        Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar);
+        var buku = new BukuCatatan(FolderCatatan());
+        var belajar = new HalamanBelajar(buku, TimeProvider.System, BukaFolder, alat);
+        var catur = new HalamanCatur(new KoleksiPartai(Path.Combine(folderData, FolderCatur), alat.Jaringan), buku, TimeProvider.System);
+        Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar, catur);
 
         setelanWeb = WebKit.Settings.New();
         // Halaman yang ditinggalkan tidak disimpan utuh di memori untuk tombol
@@ -269,6 +271,9 @@ static class Mesin
 
     /// <summary>Model dan kunci API asisten (izin 600), di folder data.</summary>
     public const string BerkasAsisten = "asisten.tsv";
+
+    /// <summary>Akun dan partai catur (kevin://catur), di folder data.</summary>
+    public const string FolderCatur = "catur";
 
     /// <summary>
     /// Bahasa pilihan pemakai sebelum GTK dan WebKit dimuat (pesan galat di

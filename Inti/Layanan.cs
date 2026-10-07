@@ -44,6 +44,9 @@ public interface ILayanan
 
     /// <summary>kevin://belajar, dari proyek Asisten; null kalau tidak dipasang.</summary>
     IHalaman? Belajar => null;
+
+    /// <summary>kevin://catur, dari proyek Asisten; null kalau tidak dipasang.</summary>
+    IHalaman? Catur => null;
 }
 
 /// <summary>

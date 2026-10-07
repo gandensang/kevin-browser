@@ -119,13 +119,13 @@ public sealed partial class UjiHalaman : IDisposable
         TautanKevin().Matches(html).Select(m => m.Groups[1].Value).ToList();
 
     [Fact]
-    public async Task MenuAtasBerandaBelajarSegeraHadirDanPengaturan()
+    public async Task MenuAtasBerandaBelajarCaturDanPengaturan()
     {
         var kepala = Bagian(await Html("kevin://kisah"), "header");
         // Yang pertama tautan merek (logo).
-        Assert.Equal(["kevin://beranda", "kevin://beranda", "kevin://belajar", "kevin://rencana", "kevin://pengaturan"], Tautan(kepala));
+        Assert.Equal(["kevin://beranda", "kevin://beranda", "kevin://belajar", "kevin://catur", "kevin://pengaturan"], Tautan(kepala));
         Assert.Contains("<a href=\"kevin://belajar\">Belajar</a>", kepala);
-        Assert.Contains("<a href=\"kevin://rencana\" class=\"segera\">Segera hadir</a>", kepala);
+        Assert.Contains("<a href=\"kevin://catur\">Catur</a>", kepala);
     }
 
     [Fact]
@@ -140,8 +140,9 @@ public sealed partial class UjiHalaman : IDisposable
     public async Task HalamanAktifDisorotDiKepalaDanKaki()
     {
         var html = await Html("kevin://rencana");
-        Assert.Contains("<a href=\"kevin://rencana\" class=\"segera\" aria-current=\"page\">Segera hadir</a>", Bagian(html, "header"));
+        Assert.DoesNotContain("aria-current", Bagian(html, "header"));
         Assert.Contains("<a href=\"kevin://rencana\" aria-current=\"page\">Rencana</a>", Bagian(html, "footer"));
+        Assert.Contains("<a href=\"kevin://catur\" aria-current=\"page\">Catur</a>", Bagian(await Html("kevin://catur"), "header"));
     }
 
     // Kata-kata yang tidak mungkin ada di halaman berbahasa Inggris. Alamat
@@ -153,7 +154,8 @@ public sealed partial class UjiHalaman : IDisposable
     public static TheoryData<string> SemuaHalaman => new([.. Menu, "kevin://riwayat", "kevin://bookmark", "kevin://tidak-ada",
         "kevin://belajar?baru", "kevin://belajar?cari=lichess", "kevin://belajar?cari=", "kevin://belajar?sumber",
         "kevin://belajar?c=tidak-ada", "kevin://belajar?serap", "kevin://belajar?serap&tempel", "kevin://belajar?ai",
-        "kevin://belajar?serap&kerja=ABC", "kevin://belajar?tanya", "kevin://belajar?tanya&obrolan=ABC"]);
+        "kevin://belajar?serap&kerja=ABC", "kevin://belajar?tanya", "kevin://belajar?tanya&obrolan=ABC",
+        "kevin://belajar?m=fisika", "kevin://catur", "kevin://catur?tempel", "kevin://catur?akun", "kevin://catur?partai=tidak-ada"]);
 
     [Theory]
     [MemberData(nameof(SemuaHalaman))]
@@ -168,7 +170,7 @@ public sealed partial class UjiHalaman : IDisposable
         Assert.Contains("<html lang=\"en\">", html);
         Assert.Contains(">Home</a>", html);
         Assert.Contains(">Settings</a>", html);
-        Assert.Contains(">Coming soon</a>", html);
+        Assert.Contains(">Chess</a>", html);
         Assert.Contains(">Learn</a>", html);
         Assert.Contains($"Kevin Browser version {HalamanBawaan.Versi} ·", html);
         Assert.DoesNotContain("{{", html);

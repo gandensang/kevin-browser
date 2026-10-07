@@ -35,14 +35,13 @@ public static class HalamanBawaan
 
     readonly record struct Butir(string Nama, string Judul, string JudulInggris, string? Kelas = null);
 
-    // Kepala: halaman utama, fitur khusus Kevin Browser (Belajar), dan tempat
-    // untuk fitur berikutnya (catur, asisten, …). Sampai fiturnya ada, tempat
-    // itu menunjuk ke halaman Rencana.
+    // Kepala: halaman utama, fitur khusus Kevin Browser (Belajar, Catur), dan
+    // Pengaturan. Halaman tentang browser ini ada di kaki.
     static readonly Butir[] MenuKepala =
     [
         new("beranda", "Beranda", "Home"),
         new("belajar", "Belajar", "Learn"),
-        new("rencana", "Segera hadir", "Coming soon", "segera"),
+        new("catur", "Catur", "Chess"),
         new("pengaturan", "Pengaturan", "Settings"),
     ];
 
@@ -86,6 +85,9 @@ public static class HalamanBawaan
             case "belajar" when layanan?.Belajar is { } belajar:
                 var halaman = await belajar.Buat(uri, isiPost, t);
                 return Halaman(t, "belajar", halaman.Judul, halaman.Isi, "belajar");
+            case "catur" when layanan?.Catur is { } catur:
+                var papan = await catur.Buat(uri, isiPost, t);
+                return Halaman(t, "catur", papan.Judul, papan.Isi, "catur");
         }
 
         var butir = MenuKaki.Append(MenuKepala[0]).FirstOrDefault(m => m.Nama == nama);

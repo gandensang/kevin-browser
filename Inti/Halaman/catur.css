@@ -1,0 +1,178 @@
+/* Catur (kevin://catur): daftar partai dan papan. Hanya dimuat halaman
+   catur. Datar seperti gaya.css: tanpa bayangan dan animasi. Gambar bidak:
+   set Cburnett (Wikimedia Commons, lisensi BSD), lihat THIRD-PARTY-NOTICES.md. */
+
+.baris-akun { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 0.8rem; margin: -0.4rem 0 1.4rem; }
+.baris-akun .akun { margin-left: 0.4rem; }
+.kartu-akun p { margin: 0 0 0.8rem; }
+
+/* Saringan daftar partai */
+.saringan { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem 1rem; margin: 0 0 1rem; }
+.saringan > div { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pilihan {
+  padding: 0.22rem 0.8rem;
+  border: 1px solid var(--garis);
+  border-radius: 999px;
+  background: var(--permukaan);
+  color: var(--teks);
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.pilihan:hover { background: var(--sorot); }
+.pilihan.aktif { background: var(--aksen); border-color: var(--aksen); color: var(--di-aksen); }
+
+/* Daftar partai */
+.daftar-partai {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 1px solid var(--garis);
+  border-radius: 1rem;
+  background: var(--permukaan);
+  overflow: hidden;
+}
+.daftar-partai li { margin: 0; border-top: 1px solid var(--garis); }
+.daftar-partai li:first-child { border-top: 0; }
+.daftar-partai a { display: flex; align-items: center; gap: 0.9rem; padding: 0.6rem 1.1rem; color: var(--teks); text-decoration: none; }
+.daftar-partai a:hover { background: var(--sorot); }
+.daftar-partai .isi { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.4; }
+.daftar-partai .isi strong { display: flex; align-items: center; gap: 0.45rem; font-weight: 600; }
+.daftar-partai small { color: var(--redup); font-weight: 400; }
+.daftar-partai .pembukaan { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daftar-partai .ket { display: flex; flex: none; flex-direction: column; align-items: flex-end; line-height: 1.4; text-align: right; }
+.daftar-partai time { font-size: 0.82rem; color: var(--redup); }
+.hasil {
+  flex: none;
+  min-width: 4.4rem;
+  padding: 0.12rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--sorot);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: center;
+}
+.hasil.menang { background: #2f7d4a; color: #ffffff; }
+.hasil.kalah { background: #b0472f; color: #ffffff; }
+.hasil.seri { background: #6b625a; color: #ffffff; }
+.bidak-kecil { display: inline-block; flex: none; width: 0.8rem; height: 0.8rem; border: 1px solid var(--redup); border-radius: 0.2rem; }
+.bidak-kecil.putih { background: #ffffff; }
+.bidak-kecil.hitam { background: #262421; }
+
+/* Pemutar partai: papan di kiri, langkah di kanan. Papan mengikuti tinggi
+   layar supaya muat utuh di laptop 1366×768. */
+.kepala-partai { margin: -0.8rem 0 1rem; }
+.kepala-partai h1 { margin: 0; font-size: 1.5rem; }
+.kepala-partai .keterangan { margin: 0.15rem 0 0; color: var(--redup); font-size: 0.92rem; }
+.tata-papan {
+  display: grid;
+  grid-template-columns: minmax(0, min(34rem, calc(100vh - 15rem))) minmax(15rem, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.kolom-papan { display: flex; flex-direction: column; gap: 0.45rem; }
+.kolom-papan .pemain.hitam { order: 1; }
+.papan-wadah { order: 2; display: flex; gap: 0.45rem; }
+.kolom-papan .pemain.putih { order: 3; }
+.kendali { display: flex; justify-content: center; gap: 0.4rem; }
+.kolom-papan.terbalik .pemain.putih { order: 1; }
+.kolom-papan.terbalik .pemain.hitam { order: 3; }
+.pemain { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+.pemain small { color: var(--redup); font-weight: 400; }
+.kendali .tombol { padding: 0.45rem 0.95rem; }
+.kendali .ikon { width: 1.25rem; height: 1.25rem; }
+
+.papan {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  aspect-ratio: 1;
+  border-radius: 0.35rem;
+  overflow: hidden;
+  user-select: none;
+}
+.petak { position: relative; background-size: 100% 100%; }
+.petak.terang { background-color: var(--petak-terang); }
+.petak.gelap { background-color: var(--petak-gelap); }
+.petak.terakhir.terang { background-color: #cdd26a; }
+.petak.terakhir.gelap { background-color: #aaa23a; }
+.petak[data-kolom]::after, .petak[data-baris]::before {
+  position: absolute;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.petak[data-kolom]::after { content: attr(data-kolom); right: 0.18rem; bottom: 0.05rem; }
+.petak[data-baris]::before { content: attr(data-baris); left: 0.18rem; top: 0.05rem; }
+.petak.terang::before, .petak.terang::after { color: #946f51; }
+.petak.gelap::before, .petak.gelap::after { color: #f0d9b5; }
+
+.b-wk { background-image: url("kevin://bidak-wk.svg"); }
+.b-wq { background-image: url("kevin://bidak-wq.svg"); }
+.b-wr { background-image: url("kevin://bidak-wr.svg"); }
+.b-wb { background-image: url("kevin://bidak-wb.svg"); }
+.b-wn { background-image: url("kevin://bidak-wn.svg"); }
+.b-wp { background-image: url("kevin://bidak-wp.svg"); }
+.b-bk { background-image: url("kevin://bidak-bk.svg"); }
+.b-bq { background-image: url("kevin://bidak-bq.svg"); }
+.b-br { background-image: url("kevin://bidak-br.svg"); }
+.b-bb { background-image: url("kevin://bidak-bb.svg"); }
+.b-bn { background-image: url("kevin://bidak-bn.svg"); }
+.b-bp { background-image: url("kevin://bidak-bp.svg"); }
+
+/* Bilah nilai mesin (dari analisis Lichess): bagian terang = putih */
+.bilah-nilai { position: relative; flex: none; width: 0.75rem; border-radius: 0.3rem; background: #403d39; overflow: hidden; }
+.bilah-nilai > div { position: absolute; right: 0; bottom: 0; left: 0; height: 50%; background: #f2f0ec; }
+.kolom-papan.terbalik .bilah-nilai > div { top: 0; bottom: auto; }
+
+.kolom-langkah { display: flex; flex-direction: column; gap: 0.8rem; min-width: 0; }
+.aksi-partai { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.aksi-partai form { margin: 0; }
+.aksi-partai .tombol { padding: 0.35rem 0.9rem; font-size: 0.9rem; }
+.pembukaan-partai { margin: 0; font-weight: 600; }
+.daftar-langkah {
+  max-height: min(26rem, calc(100vh - 21rem));
+  margin: 0;
+  padding: 0.4rem;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--garis);
+  border-radius: 1rem;
+  background: var(--permukaan);
+  font-variant-numeric: tabular-nums;
+}
+.daftar-langkah li { display: grid; grid-template-columns: 2.4rem 1fr 1fr; align-items: center; margin: 0; }
+.daftar-langkah .no { padding-right: 0.5rem; font-size: 0.85rem; color: var(--redup); text-align: right; }
+.daftar-langkah .lewat { padding: 0.15rem 0.5rem; color: var(--redup); }
+.daftar-langkah button {
+  padding: 0.15rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--teks);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.daftar-langkah button:hover { background: var(--sorot); }
+.daftar-langkah button.sekarang { background: var(--aksen); color: var(--di-aksen); }
+.tanda { margin-left: 0.1rem; font-weight: 700; }
+.t-blunder .tanda { color: #c0392b; }
+.t-salah .tanda { color: #d9822b; }
+.t-ragu .tanda { color: #b8941f; }
+.t-bagus .tanda { color: #2f7d4a; }
+.t-menarik .tanda { color: #33669c; }
+.daftar-langkah button.sekarang .tanda { color: inherit; }
+.komentar {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border-left: 4px solid var(--aksen);
+  border-radius: 0.5rem;
+  background: var(--sorot);
+  font-size: 0.92rem;
+}
+#analisis { display: inline-flex; align-items: center; gap: 0.4em; }
+
+@media (max-width: 880px) {
+  .tata-papan { grid-template-columns: minmax(0, 1fr); }
+}

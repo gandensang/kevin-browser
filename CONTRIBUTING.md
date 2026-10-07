@@ -91,7 +91,14 @@ the address to the window that's already open.
   `Markah` turns a note into HTML, escaping everything: notes may contain
   text from websites. `HalamanBelajar` builds the pages; their icons are
   small inline SVGs drawn by hand in `Ikon`, so there is no icon font and no
-  third-party license. `Penyerap`
+  third-party license. Chess lives here too (`Asisten/Catur/`): `Papan` is
+  our own chess rules (legal moves, SAN, FEN), checked against known perft
+  counts in `UjiPapan`; `Pgn` reads games; `KoleksiPartai` fetches public
+  games by username from Lichess and Chess.com (no login) and keeps them on
+  disk; `HalamanCatur` builds `kevin://catur`. The board is the only
+  `kevin://` page with JavaScript (`Inti/Halaman/catur.js`); everything else
+  there is plain forms. The piece images are the BSD-licensed Cburnett set
+  (`THIRD-PARTY-NOTICES.md`). `Penyerap`
   ("absorber") turns study material into notes with one DeepSeek call
   (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
   `sumber.md` so nothing is processed twice, and writes the notes; the model
@@ -119,6 +126,12 @@ the address to the window that's already open.
   window-testing tools.
 
 ## House rules
+
+- **Nobody installs anything by hand.** Use whatever technology fits, but a
+  user must never have to install Python, a library, or an engine
+  separately to run the browser. Required dependencies go in the `.deb`
+  package's `Depends`, so apt installs them. Optional, large pieces are
+  downloaded from inside the browser with one click and set themselves up.
 
 - **User-facing text comes in two languages.** In code:
   `t["Simpan", "Save"]` (see `Inti/Bahasa.cs`). Fixed pages have an English
@@ -173,6 +186,9 @@ Each of these cost hours. Read them before touching `Linux/`.
   video calls are impossible whatever the permissions.
 - **`NetworkSession` doesn't store cookies on disk** without
   `SetPersistentStorage`.
+- **Lichess answers an HTML 404 page to API requests without an
+  identifying User-Agent** (for example `/api/games/user/{name}`).
+  `KoleksiPartai` sends `KevinBrowser/<version> (+repository URL)`; keep it.
 - **A `kevin://` page that reloads itself** (`<meta http-equiv="refresh">`,
   as the chat page does every 2 seconds while the AI answers) pays for its
   layout on every reload. `position: sticky` alone took the chat page from

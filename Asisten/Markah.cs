@@ -524,6 +524,7 @@ static class Markah
         alamat.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
         || alamat.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
         || alamat.StartsWith(HalamanBawaan.Belajar, StringComparison.OrdinalIgnoreCase)
+        || alamat.StartsWith("kevin://catur", StringComparison.OrdinalIgnoreCase)
             ? alamat
             : null;
 

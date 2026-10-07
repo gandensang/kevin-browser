@@ -69,8 +69,8 @@ You don't have to be a WebKit expert to help:
 - **Bring an idea.** The top menu bar is deliberately kept almost empty:
   space reserved for whatever will make Kevin Browser truly its own. The
   first is Learn, a notebook for school that now has a study assistant.
-  Chess is next. Yours could be the third, as long as a weak laptop can
-  carry it.
+  The second is Chess. Yours could be the third, as long as a weak laptop
+  can carry it.
 - **Fix a bug, translate a page, or improve the docs.**
 
 Open an issue to talk it through, in English or Indonesian. When you're ready
@@ -96,8 +96,10 @@ you don't have to.
 
 **Later, and only if they stay light:**
 
-- **Chess.** Chess is our children's hobby, so something chess-related will
-  come, in a form a weak laptop can carry.
+- **Chess.** Chess is our children's hobby. The first step is here: Chess
+  (`kevin://catur`) replays your Lichess and Chess.com games on a board of
+  its own. Next come guess-the-move and analysis explained like a tutor,
+  with a chess engine and AI.
 - **A study assistant.** The first steps are already here: Learn
   (`kevin://belajar`), a notebook of plain Markdown files that can turn
   study material into notes and go through them with you in a chat, like a
@@ -204,17 +206,19 @@ started as a family project in Indonesia. Don't let that stop you; see
 ## A quick tour
 
 The home page (`kevin://beranda`) has a Google search box and your bookmarks.
-The top menu holds just Home, Learn, Settings, and a spot for what's coming
-next. Learn (`kevin://belajar`) is a notebook for school: notes are plain
-Markdown files in `~/kevin-catatan`, one folder per subject, which you can
-read, search, and write there or open in any text editor. With your own
-DeepSeek API key, it can also turn study material (a PDF, a text file, or
-pasted text) into notes, with the estimated cost shown before anything is
-sent, and teach from your notes in a chat: a little at a time, with
-questions back to check you understood, naming the notes it used. The
-pages about
-the browser itself (Story, Pros & Cons, Guide, Plans, About Us) sit at the
-bottom of every page, and all of them work offline.
+The top menu holds just Home, Learn, Chess, and Settings. Learn
+(`kevin://belajar`) is a notebook for school: notes are plain Markdown files
+in `~/kevin-catatan`, one folder per subject, which you can read, search,
+and write there or open in any text editor. With your own DeepSeek API key,
+it can also turn study material (a PDF, a text file, or pasted text) into
+notes, with the estimated cost shown before anything is sent, and teach
+from your notes in a chat: a little at a time, with questions back to check
+you understood, naming the notes it used. Chess (`kevin://catur`) replays
+your Lichess and Chess.com games on a board of its own: enter just your
+username (public games need no login), filter by result, color, or site,
+and save a game to your notes. The pages about the browser itself (Story,
+Pros & Cons, Guide, Plans, About Us) sit at the bottom of every page, and
+all of them work offline.
 
 | Keys | Action |
 |---|---|

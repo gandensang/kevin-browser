@@ -27,6 +27,9 @@ install -Dm755 Linux/bin/Release/net10.0/linux-x64/publish/kevin-browser "$akar/
 install -Dm644 Linux/lokal.kevin.Browser.desktop "$akar/usr/share/applications/lokal.kevin.Browser.desktop"
 install -Dm644 paket/kevin-browser.gpg "$akar/usr/share/keyrings/kevin-browser.gpg"
 install -Dm644 paket/kevin-browser.sources "$akar/etc/apt/sources.list.d/kevin-browser.sources"
+# Lisensi: milik Kevin Browser, dan milik gambar bidak catur (BSD, wajib ikut).
+install -Dm644 LICENSE "$akar/usr/share/doc/kevin-browser/copyright"
+install -Dm644 THIRD-PARTY-NOTICES.md "$akar/usr/share/doc/kevin-browser/THIRD-PARTY-NOTICES.md"
 ukuran=$(du -sk "$akar/usr" "$akar/etc" | awk '{ s += $1 } END { print s }')
 
 # GTK4 dan WebKitGTK dimuat GirCore saat jalan (dlopen), jadi dependensinya

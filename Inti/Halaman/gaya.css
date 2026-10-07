@@ -382,7 +382,7 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--petak-gelap); 
 /* Belajar: tampilan aplikasi belajar. Tetap datar seperti halaman lain:
    tanpa bayangan, gradasi, atau animasi; ikon SVG sebaris (Asisten/Ikon.cs). */
 
-main.belajar { max-width: 1000px; }
+main.belajar, main.catur { max-width: 1000px; }
 
 .ikon {
   width: 1.15em;
@@ -396,7 +396,7 @@ main.belajar { max-width: 1000px; }
   vertical-align: -0.2em;
 }
 
-main.belajar .tombol { display: inline-flex; align-items: center; justify-content: center; gap: 0.45em; }
+:is(main.belajar, main.catur) .tombol { display: inline-flex; align-items: center; justify-content: center; gap: 0.45em; }
 .tombol.kecil { padding: 0.3rem 0.85rem; font-size: 0.88rem; }
 .tombol.bahaya-teks { color: #b5452f; }
 
@@ -627,14 +627,14 @@ main.belajar .tombol { display: inline-flex; align-items: center; justify-conten
 .isi-catatan .putus { color: var(--redup); text-decoration: underline dashed; }
 
 /* Formulir (tulis, sunting, Asisten AI) */
-main.belajar form.tulis {
+:is(main.belajar, main.catur) form.tulis {
   padding: 1.2rem 1.4rem;
   margin: 0 0 1.5rem;
   border: 1px solid var(--garis);
   border-radius: 1rem;
   background: var(--permukaan);
 }
-main.belajar form.tulis :is(input[type="text"], input[type="password"], select, textarea) { background: var(--latar); }
+:is(main.belajar, main.catur) form.tulis :is(input[type="text"], input[type="password"], select, textarea) { background: var(--latar); }
 
 .tulis label { display: block; margin: 0 0 0.8rem; font-weight: 600; }
 

@@ -38,6 +38,8 @@ sealed class LayananPalsu : ILayanan, IDisposable
         PengaturanAi = new PengaturanAi(Path.Combine(folder, "asisten.tsv"));
         Belajar = new HalamanBelajar(Catatan, Waktu, FolderDibuka.Add,
             new AlatSerap(PengaturanAi, Jaringan, FolderUnduhan, (berkas, batal) => PdfKeTeks(berkas, batal)));
+        Partai = new KoleksiPartai(Path.Combine(folder, "catur"), Jaringan);
+        Catur = new HalamanCatur(Partai, Catatan, Waktu);
     }
 
     public Riwayat Riwayat { get; }
@@ -48,6 +50,8 @@ sealed class LayananPalsu : ILayanan, IDisposable
     public StatusPenyaring? Penyaring { get; set; }
     public BukuCatatan Catatan { get; }
     public IHalaman? Belajar { get; }
+    public KoleksiPartai Partai { get; }
+    public IHalaman? Catur { get; }
     public List<string> FolderDibuka { get; } = [];
     public string FolderUnduhan { get; }
     public PengaturanAi PengaturanAi { get; }
