@@ -96,10 +96,11 @@ you don't have to.
 
 **Later, and only if they stay light:**
 
-- **Chess.** Chess is our children's hobby. The first step is here: Chess
+- **Chess.** Chess is our children's hobby. The first steps are here: Chess
   (`kevin://catur`) replays your Lichess and Chess.com games on a board of
-  its own. Next come guess-the-move and analysis explained like a tutor,
-  with a chess engine and AI.
+  its own, and guess the move trains them with an AI coach that uses the
+  Stockfish engine on the laptop. Next comes analysis explained like a tutor, with a chess engine
+  and AI.
 - **A study assistant.** The first steps are already here: Learn
   (`kevin://belajar`), a notebook of plain Markdown files that can turn
   study material into notes and go through them with you in a chat, like a
@@ -216,7 +217,11 @@ from your notes in a chat: a little at a time, with questions back to check
 you understood, naming the notes it used. Chess (`kevin://catur`) replays
 your Lichess and Chess.com games on a board of its own: enter just your
 username (public games need no login), filter by result, color, or site,
-and save a game to your notes. The pages about the browser itself (Story,
+and save a game to your notes. Guess the move is a chat with an AI coach:
+Stockfish (one click to install, 1.7 MB, then it runs offline) picks the
+positions that matter, skipping memorized openings and forced moves; you
+answer in your own words, the coach has Stockfish test your move and
+variations, then explains, and the lessons go into the game's note. The pages about the browser itself (Story,
 Pros & Cons, Guide, Plans, About Us) sit at the bottom of every page, and
 all of them work offline.
 

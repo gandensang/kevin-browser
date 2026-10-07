@@ -9,17 +9,19 @@ namespace KevinBrowser.Asisten;
 /// <summary>
 /// kevin://catur: partai dari akun Lichess dan Chess.com (hanya nama akun,
 /// tanpa login) atau dari PGN yang ditempel, diputar ulang di papan sendiri.
-/// Satu-satunya halaman kevin:// yang memakai JavaScript (catur.js), untuk
-/// papannya; daftar, formulir, dan aksi tetap halaman biasa tanpa JS.
+/// Satu-satunya halaman kevin:// yang memakai JavaScript (papan.js, catur.js,
+/// latihan.js); daftar, formulir, dan aksi tetap halaman biasa tanpa JS.
 /// </summary>
 /// <remarks>
 /// Alamat: <c>kevin://catur</c> (daftar, dengan saringan <c>hasil</c>,
 /// <c>warna</c>, <c>situs</c>, <c>cari</c>, <c>n</c>), <c>?ambil</c> (ambil
 /// partai terbaru akun yang dihubungkan), <c>?akun</c>, <c>?tempel</c>, dan
 /// <c>?partai=ID</c> (pemutar; POST <c>aksi=simpan</c> menyimpannya jadi
-/// catatan di mata pelajaran Catur).
+/// catatan di mata pelajaran Catur), <c>?latihan=ID</c> (tebak langkah
+/// bersama pelatih AI), dan <c>?mesin</c> (Stockfish).
 /// </remarks>
-public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimeProvider waktu) : IHalaman
+public sealed partial class HalamanCatur(KoleksiPartai koleksi, MesinCatur mesin, BukuCatatan buku, TimeProvider waktu, PelatihCatur? pelatih = null)
+    : IHalaman, IDataHalaman
 {
     const string Alamat = "kevin://catur";
     const string MapelCatur = "catur";
@@ -34,12 +36,74 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
     {
         var kueri = new Kueri(uri, isiPost);
         var post = isiPost is not null;
-        return kueri["partai"] is { } id ? Lihat(t, kueri, id, post)
+        return kueri["latihan"] is { } idLatihan ? Latihan(t, kueri, idLatihan, post)
+            : kueri["mesin"] is not null ? await PasangMesin(t, kueri, post)
+            : kueri["partai"] is { } id ? Lihat(t, kueri, id, post)
             : kueri["tempel"] is not null ? await Tempel(t, kueri, post)
             : kueri["akun"] is not null ? AturAkun(t, kueri, post)
             : kueri["ambil"] is not null ? await Ambil(t)
             : Daftar(t, kueri);
     }
+
+    // ---------- data untuk skrip halaman catur ----------
+
+    const string AwalMesin = "kevin-mesin://mesin/";
+
+    /// <summary>
+    /// Berkas mesin (kevin-mesin://mesin/…), kemajuan pemasangannya, dan JSON
+    /// untuk latihan.js; null untuk halaman biasa.
+    /// </summary>
+    public async Task<(byte[] Isi, string Jenis)?> Data(string uri, string? isiPost, Teks t)
+    {
+        if (uri.StartsWith(AwalMesin, StringComparison.OrdinalIgnoreCase))
+        {
+            var nama = uri[AwalMesin.Length..];
+            var akhir = nama.IndexOfAny(['?', '#']);
+            if (akhir >= 0)
+                nama = nama[..akhir];
+            if (nama == "perantara.html")
+                return (Encoding.UTF8.GetBytes(Perantara), "text/html");
+            return mesin.Baca(nama) is { } isi ? (isi, nama.EndsWith(".wasm", StringComparison.Ordinal) ? "application/wasm" : "text/javascript") : null;
+        }
+        var kueri = new Kueri(uri, isiPost);
+        if (kueri["mesin"] is not null && kueri["kemajuan"] is not null)
+            return Json(json =>
+            {
+                var (bait, total) = mesin.Kemajuan;
+                json.WriteNumber("bait", bait);
+                json.WriteNumber("total", total);
+            });
+        if (kueri["mesin"] is not null && kueri["pasang"] is not null && isiPost is not null)
+            return await PasangLewatSkrip(kueri, t);
+        if (kueri["latihan"] is not null && isiPost is not null && (kueri["soal"] ?? kueri["kirim"] ?? kueri["lanjut"]) is not null)
+            return await DataLatihan(kueri, t);
+        return null;
+    }
+
+    // Halaman perantara di kevin-mesin://: menjalankan Stockfish sebagai Worker
+    // dan meneruskan pesan UCI dari dan ke halaman catur. Perintah hanya
+    // diterima dari kevin://catur. Keluarannya dikirim ke '*' karena WebKit
+    // tidak mencocokkan asal skema lokal sebagai tujuan postMessage (terlihat
+    // 7 Okt 2026: dengan tujuan 'kevin://catur' tidak ada yang sampai); isinya
+    // hanya keluaran mesin, dan halaman catur memeriksa pengirimnya.
+    const string Perantara = $$"""
+        <!doctype html><meta charset="utf-8"><script>
+        'use strict';
+        let mesin;
+        try {
+          mesin = new Worker('{{MesinCatur.Skrip}}#' + encodeURIComponent(new URL('{{MesinCatur.Wasm}}', location.href)));
+          mesin.onmessage = e => parent.postMessage({ mesin: String(e.data) }, '*');
+          mesin.onerror = () => parent.postMessage({ galat: true }, '*');
+        } catch (e) {
+          parent.postMessage({ galat: true }, '*');
+        }
+        addEventListener('message', e => {
+          if (e.origin === 'kevin://catur' && mesin && typeof e.data === 'string')
+            mesin.postMessage(e.data);
+        });
+        parent.postMessage({ siap: true }, '*');
+        </script>
+        """;
 
     // ---------- kevin://catur: daftar partai ----------
 
@@ -199,6 +263,8 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
         {
             if (!TokenSekali.Pakai(kueri["token"]))
                 pesan = t["Permintaan ini sudah dipakai atau kedaluwarsa. Tekan Simpan ke catatan lagi.", "This request was already used or has expired. Press Save as a note again."];
+            else if (CariCatatan(p) is { } ada)
+                return HalamanBelajar.Pindah(t, HalamanBelajar.Alamat(ada));   // sudah pernah disimpan: tidak dobel
             else if (buku.Tulis(MapelCatur, JudulCatatan(t, p), IsiCatatan(t, p), waktu.GetLocalNow().DateTime) is { } catatan)
                 return HalamanBelajar.Pindah(t, HalamanBelajar.Alamat(catatan));
             else
@@ -212,6 +278,7 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
         var keterangan = string.Join(" · ", new[] { p["Event"], p.Waktu is { } d ? t.TanggalSingkat(d) : null, TeksHasil(t, p) }.Where(s => s is not null)
             .Select(s => HtmlEncode(s!)));
         var aksi = new StringBuilder($"""
+            <a class="tombol utama" href="{HtmlEncode($"{Alamat}?latihan={Uri.EscapeDataString(p.Id)}")}">{Ikon.Tebak}{t["Tebak langkah", "Guess the move"]}</a>
             <form action="{HtmlEncode($"{Alamat}?partai={Uri.EscapeDataString(p.Id)}")}" method="post"><input type="hidden" name="aksi" value="simpan"><input type="hidden" name="token" value="{TokenSekali.Buat()}"><button class="tombol" type="submit">{Ikon.Buku}{t["Simpan ke catatan", "Save as a note"]}</button></form>
             """);
         if (p.Tautan is { } tautan)
@@ -252,6 +319,7 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
             .Append("</aside>\n</div>\n")
             .Append("""<script type="application/json" id="data-partai">""").Append(DataPartai(u, balik)).Append("</script>\n")
             .Append(Tautan()).Append('\n')
+            .Append("""<script src="kevin://papan.js"></script>""").Append('\n')
             .Append("""<script src="kevin://catur.js"></script>""");
         return (judul, isi.ToString());
     }
@@ -321,8 +389,19 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
         return Encoding.UTF8.GetString(aliran.ToArray());
     }
 
+    // Partai sendiri: "Partai vs lawan, 5 Okt 2026" (nama berkasnya jadi
+    // …-partai-vs-lawan-…, seperti catatan catur KEVIN); partai orang lain:
+    // "Putih vs Hitam, 5 Okt 2026".
     string JudulCatatan(Teks t, Partai p) =>
-        $"{p.Putih} vs {p.Hitam}" + (p.Waktu is { } d ? $", {t.TanggalSingkat(d)}" : "");
+        (SisiSaya(p) is { } putih ? $"{t["Partai vs", "Game vs"]} {(putih ? p.Hitam : p.Putih)}" : $"{p.Putih} vs {p.Hitam}")
+        + (p.Waktu is { } d ? $", {t.TanggalSingkat(d)}" : "");
+
+    // Catatan partai ini di mata pelajaran Catur, dikenali dari tautannya ke papan.
+    Catatan? CariCatatan(Partai p)
+    {
+        var tautan = $"{Alamat}?partai={Uri.EscapeDataString(p.Id)}";
+        return buku.Semua().FirstOrDefault(c => c.Mapel == MapelCatur && buku.Baca(c.Mapel, c.Nama) is { } isi && isi.Contains(tautan, StringComparison.Ordinal));
+    }
 
     // Catatan partai di mata pelajaran Catur: kepala, langkah, dan tempat
     // pelajarannya. Baris "Sumber:" paling atas tampil di bawah judul.
@@ -376,10 +455,45 @@ public sealed class HalamanCatur(KoleksiPartai koleksi, BukuCatatan buku, TimePr
             {baris}
             ```
 
-            ## {t["Pelajaran", "Lessons"]}
+            {MomenLichess(t, p)}## {t["Pelajaran", "Lessons"]}
 
-            {t["(belum diisi)", "(not filled in yet)"]}
+            {t["(Tulis sendiri, atau latih partai ini dengan Tebak langkah: hasilnya ditambahkan ke catatan ini.)",
+                "(Write your own, or practise this game with Guess the move: the results are added to this note.)"]}
             """;
+    }
+
+    // Langkah bertanda ?, ??, ?! dari analisis Lichess, milik sisi sendiri
+    // (atau kedua sisi kalau bukan partai sendiri). Komentar Lichess
+    // "(0.25 → -0.30) Mistake. Nf3 was best." dijadikan kalimat sendiri.
+    string MomenLichess(Teks t, Partai p)
+    {
+        var u = p.Urai();
+        var saya = SisiSaya(p);
+        var papan = Papan.DariFen(u.FenAwal)!;
+        var (nomor, putih) = (papan.NomorLangkah, papan.GiliranPutih);
+        var baris = new List<string>();
+        foreach (var l in u.Langkah)
+        {
+            if (l.Tanda is "??" or "?" or "?!" && (saya is null || saya == putih))
+                baris.Add($"- {nomor}{(putih ? "." : "...")} {l.San}{l.Tanda}: {Penilaian(t, l)}");
+            if (!putih)
+                nomor++;
+            putih = !putih;
+        }
+        return baris.Count == 0 ? ""
+            : $"## {t["Momen penting (analisis Lichess)", "Key moments (Lichess analysis)"]}\n\n{string.Join('\n', baris)}\n\n";
+    }
+
+    static string Penilaian(Teks t, LangkahPartai l)
+    {
+        var teks = l.Tanda switch { "??" => "blunder", "?" => t["kesalahan", "mistake"], _ => t["ketidaktepatan", "inaccuracy"] };
+        var k = l.Komentar ?? "";
+        if (k.StartsWith('(') && k.IndexOf(')') is var tutup and > 1)
+            teks += $" ({(t.Inggris ? k[1..tutup] : k[1..tutup].Replace('.', ','))})";
+        var terbaik = k.IndexOf(" was best", StringComparison.Ordinal);
+        if (terbaik > 0)
+            teks += $". {t["Lebih baik", "Better"]}: {k[(k.LastIndexOf(' ', terbaik - 1) + 1)..terbaik]}";
+        return teks + ".";
     }
 
     // ---------- ?tempel ----------

@@ -22,6 +22,13 @@ public interface IJaringan
     /// berkode 0. Dipanggil di luar thread utama.
     /// </summary>
     Task<int> Kirim(PermintaanHttp permintaan, Action<string> perBaris, CancellationToken batal);
+
+    /// <summary>
+    /// Mengunduh isi jawaban apa adanya (biner) ke <paramref name="tujuan"/>,
+    /// paling banyak <paramref name="batas"/> bait (lebih dari itu: GalatAi
+    /// berkode 0). Pengalihan diikuti. Hasilnya kode status HTTP.
+    /// </summary>
+    Task<int> Unduh(PermintaanHttp permintaan, Stream tujuan, long batas, CancellationToken batal);
 }
 
 /// <summary>Galat dari layanan AI, dengan kode status HTTP-nya (0 = jaringan atau jawaban rusak).</summary>
@@ -142,17 +149,21 @@ public sealed class KlienAi(IJaringan jaringan)
     }
 
     /// <summary>
-    /// Satu putaran percakapan yang boleh memanggil tool, tanpa stream dan
-    /// tanpa mode berpikir. Model sendiri yang memutuskan: menjawab, atau
-    /// meminta tool. <paramref name="bolehTool"/> false = tool_choice "none",
-    /// memaksa model menjawab dengan yang sudah ia punya.
+    /// Satu putaran percakapan yang boleh memanggil tool, tanpa stream. Model
+    /// sendiri yang memutuskan: menjawab, atau meminta tool.
+    /// <paramref name="bolehTool"/> false = tool_choice "none", memaksa model
+    /// menjawab dengan yang sudah ia punya. <paramref name="berpikir"/>: mode
+    /// berpikir (lebih teliti, lebih lambat; token berpikirnya ikut dibayar
+    /// dan termasuk <paramref name="maksToken"/>). Penalarannya tidak perlu
+    /// dikirim balik di putaran berikutnya (dicoba 7 Okt 2026: diterima
+    /// dengan atau tanpa reasoning_content, token masuknya sama).
     /// </summary>
     public async Task<JawabanTool> ChatTool(string alamat, string kunci, string model, IReadOnlyList<PesanAi> pesan,
-        IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken, CancellationToken batal)
+        IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken, CancellationToken batal, bool berpikir = false)
     {
         var isi = new StringBuilder();
         var status = await jaringan.Kirim(new PermintaanHttp("POST", alamat + "/chat/completions", Kepala(kunci),
-            BadanTool(model, pesan, alat, bolehTool, maksToken), "application/json"), baris => isi.Append(baris).Append('\n'), batal);
+            BadanTool(model, pesan, alat, bolehTool, maksToken, berpikir), "application/json"), baris => isi.Append(baris).Append('\n'), batal);
         if (status != 200)
             throw Galat(status, isi.ToString());
         try
@@ -191,7 +202,7 @@ public sealed class KlienAi(IJaringan jaringan)
         return (cache, baru, Angka(pakai, "completion_tokens"));
     }
 
-    static byte[] BadanTool(string model, IReadOnlyList<PesanAi> pesan, IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken)
+    static byte[] BadanTool(string model, IReadOnlyList<PesanAi> pesan, IReadOnlyList<DefinisiTool> alat, bool bolehTool, int maksToken, bool berpikir)
     {
         using var aliran = new MemoryStream();
         using (var json = new Utf8JsonWriter(aliran))
@@ -244,7 +255,7 @@ public sealed class KlienAi(IJaringan jaringan)
             json.WriteEndArray();
             json.WriteString("tool_choice", bolehTool ? "auto" : "none");
             json.WriteStartObject("thinking");
-            json.WriteString("type", "disabled");
+            json.WriteString("type", berpikir ? "enabled" : "disabled");
             json.WriteEndObject();
             json.WriteNumber("max_tokens", maksToken);
             json.WriteBoolean("stream", false);

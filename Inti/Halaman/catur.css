@@ -173,6 +173,69 @@
 }
 #analisis { display: inline-flex; align-items: center; gap: 0.4em; }
 
+/* Tebak langkah (latihan.js): obrolan dengan pelatih selebar layar, papan
+   kecil di kiri (hanya gambar posisi) dengan pilihan dan tombol kecil di
+   atasnya. Kolom obrolan setinggi layar dan bergulir sendiri, supaya papan
+   tetap terlihat. Gelembung dan kotak tulis memakai gaya Tanya (gaya.css).
+   Permintaan pemakai 7 Okt 2026: obrolan untuk berpikir dan merenung, jadi
+   harus bersih, lebar, dan enak dibaca. */
+main.catur:has(.tata-latihan) { max-width: none; padding: 0.8rem 1rem 1.2rem; }
+.jejak-latihan { margin: 0 0 0.6rem; font-size: 0.82rem; }
+.tata-latihan {
+  display: grid;
+  grid-template-columns: minmax(0, min(22rem, calc(100vh - 17rem))) minmax(0, 1fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+.kolom-kiri { display: flex; flex-direction: column; gap: 0.7rem; min-width: 0; }
+.alat-latihan { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.alat-latihan form { margin: 0; }
+.alat-latihan .tombol, .alat-latihan .pilihan { padding: 0.15rem 0.6rem; font-size: 0.78rem; font-weight: 600; }
+.alat-latihan .tombol .ikon { width: 0.95rem; height: 0.95rem; }
+.pilih-sisi { display: flex; gap: 0.25rem; margin-right: 0.3rem; }
+.kolom-kiri .pemain { font-size: 0.88rem; }
+.kolom-obrolan {
+  display: flex;
+  flex-direction: column;
+  height: max(22rem, calc(100vh - 7.8rem));
+  min-width: 0;
+}
+.kolom-obrolan .obrolan {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.6rem 0.8rem 0;
+  overflow-y: auto;
+}
+.kolom-obrolan .baris-ai { max-width: min(94%, 58rem); }
+.kolom-obrolan .gelembung.siswa { max-width: min(80%, 48rem); }
+.kolom-obrolan .info { align-self: flex-start; margin: -0.4rem 0 0 2.7rem; font-size: 0.8rem; color: var(--redup); }
+.kolom-obrolan .info.galat { margin-left: 0; color: #b0472f; }
+.gelembung.soal .lalu { color: var(--redup); font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.baris-ai.sedang .gelembung { color: var(--redup); }
+/* Tiga titik "sedang berpikir", hanya selama menunggu pelatih atau
+   Stockfish. steps(): titik yang menyala berpindah sekali per detik, jadi
+   halamannya digambar ulang sekali per detik, bukan terus-menerus
+   (penggambaran dengan CPU di laptop tanpa GPU yang layak). Terukur
+   (Xephyr/llvmpipe, build Debug, 3 × 10 detik): pergantian tiap 0,4 detik
+   24–27% satu inti, tanpa animasi 0–1%. Penting karena pelatih berpikir
+   bisa satu-dua menit. */
+.titik { display: inline-flex; gap: 0.22em; margin-left: 0.45em; vertical-align: middle; }
+.titik i { width: 0.38em; height: 0.38em; border-radius: 50%; background: currentColor; opacity: 0.25; animation: titik 3s steps(1, end) infinite; }
+.titik i:nth-child(2) { animation-delay: 1s; }
+.titik i:nth-child(3) { animation-delay: 2s; }
+@keyframes titik { 0% { opacity: 1; } 33% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .titik i { animation: none; opacity: 0.6; } }
+.kolom-obrolan .kirim { margin: 0.4rem 0 0; padding: 0; }
+.kaki-latihan { margin: 1.2rem 0 0; text-align: center; font-size: 0.8rem; }
+.kartu-mesin p { margin: 0 0 0.8rem; }
+.kartu-mesin form p { margin: 0; }
+.kemajuan-unduh { display: flex; align-items: center; gap: 0.6rem; margin: 0.7rem 0 0; color: var(--redup); font-size: 0.9rem; }
+.kemajuan-unduh[hidden] { display: none; }
+.kemajuan-unduh progress { width: 14rem; max-width: 60%; accent-color: var(--aksen); }
+
 @media (max-width: 880px) {
-  .tata-papan { grid-template-columns: minmax(0, 1fr); }
+  .tata-papan, .tata-latihan { grid-template-columns: minmax(0, 1fr); }
+  .kolom-obrolan { height: 30rem; }
+  .tata-latihan .kolom-kiri { max-width: 22rem; }
 }

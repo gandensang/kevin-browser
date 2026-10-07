@@ -14,9 +14,12 @@ namespace KevinBrowser.Linux;
 sealed class JaringanSoup : IJaringan
 {
     public Task<int> Kirim(PermintaanHttp permintaan, Action<string> perBaris, CancellationToken batal) =>
-        Task.Run(() => KirimSinkron(permintaan, perBaris, batal), batal);
+        Task.Run(() => KirimSinkron(permintaan, (aliran, batalGio) => Baca(aliran, batalGio, perBaris), batal), batal);
 
-    static int KirimSinkron(PermintaanHttp p, Action<string> perBaris, CancellationToken batal)
+    public Task<int> Unduh(PermintaanHttp permintaan, Stream tujuan, long batas, CancellationToken batal) =>
+        Task.Run(() => KirimSinkron(permintaan, (aliran, batalGio) => Salin(aliran, batalGio, tujuan, batas), batal), batal);
+
+    static int KirimSinkron(PermintaanHttp p, Action<Gio.InputStream, Gio.Cancellable> baca, CancellationToken batal)
     {
         using var sesi = Soup.Session.New();
         // Diam paling lama 5 menit: dokumen panjang lama diolah sebelum
@@ -36,13 +39,26 @@ sealed class JaringanSoup : IJaringan
         try
         {
             using var aliran = sesi.Send(pesan, batalGio);
-            Baca(aliran, batalGio, perBaris);
+            baca(aliran, batalGio);
             return (int)pesan.GetStatus();
         }
         catch (GLib.GException e)
         {
             batal.ThrowIfCancellationRequested();
             throw new GalatAi(0, e.Message);
+        }
+    }
+
+    static void Salin(Gio.InputStream aliran, Gio.Cancellable batal, Stream tujuan, long batas)
+    {
+        var penyangga = new byte[64 * 1024];
+        long total = 0;
+        for (int dibaca; (dibaca = (int)aliran.Read(penyangga, batal)) > 0;)
+        {
+            total += dibaca;
+            if (total > batas)
+                throw new GalatAi(0, "berkasnya lebih besar dari yang diharapkan");
+            tujuan.Write(penyangga, 0, dibaca);
         }
     }
 

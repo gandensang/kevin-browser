@@ -60,7 +60,8 @@ public sealed partial class UjiHalamanCatur : IDisposable
     [Fact]
     public async Task BerkasPapanDisajikan()
     {
-        Assert.Equal("text/javascript", (await HalamanBawaan.Ambil("kevin://catur.js", layanan)).Jenis);
+        foreach (var skrip in new[] { "catur", "papan", "latihan" })
+            Assert.Equal("text/javascript", (await HalamanBawaan.Ambil($"kevin://{skrip}.js", layanan)).Jenis);
         Assert.Equal("text/css", (await HalamanBawaan.Ambil("kevin://catur.css", layanan)).Jenis);
         foreach (var bidak in new[] { "wk", "wq", "wr", "wb", "wn", "wp", "bk", "bq", "br", "bb", "bn", "bp" })
         {
@@ -207,15 +208,23 @@ public sealed partial class UjiHalamanCatur : IDisposable
         var alamat = Ambil(Pindah(), hasil);
         Assert.StartsWith("kevin://belajar?m=catur&c=2026-10-", alamat);
         var catatan = Assert.Single(layanan.Catatan.Semua());
-        Assert.Equal(("catur", "kevin_uji vs lawan99, 5 Okt 2026"), (catatan.Mapel, catatan.Judul));
+        Assert.Equal(("catur", "Partai vs lawan99, 5 Okt 2026"), (catatan.Mapel, catatan.Judul));
+        Assert.Contains("-partai-vs-lawan99-", catatan.Nama);
         var isi = layanan.Catatan.Baca("catur", catatan.Nama)!;
         Assert.Contains("Sumber: https://lichess.org/abcdEFGH (Lichess, 5 Okt 2026, Blitz 5+0)", isi);
         Assert.Contains("- Hasil: Hitam menang (0-1) (Normal)\n- Pembukaan: C20 King's Pawn Game", isi);
         Assert.Contains("```pgn\n1. e4 e5 2. Qh5 Nc6 3. Bc4 g6 4. Qf3 Nf6 5. g4 0-1\n```", isi);
         Assert.Contains("[Buka di papan Catur](kevin://catur?partai=lichess-abcdEFGH)", isi);
+        Assert.Contains("## Momen penting (analisis Lichess)\n\n- 2. Qh5?!: ketidaktepatan (0,25 → -0,30). Lebih baik: Nf3.\n\n## Pelajaran", isi);
+        Assert.DoesNotContain("3... g6", isi);   // langkah lawan
 
         // Di Belajar, tautan kembali ke papan tetap jadi tautan.
         Assert.Contains("<a href=\"kevin://catur?partai=lichess-abcdEFGH\">Buka di papan Catur</a>", await Html(alamat));
+
+        // Menyimpan lagi (token baru) membuka catatan yang sama, tidak membuat yang kedua.
+        html = await Html("kevin://catur?partai=lichess-abcdEFGH");
+        Assert.Equal(alamat, Ambil(Pindah(), await Html("kevin://catur?partai=lichess-abcdEFGH", Post(("aksi", "simpan"), ("token", Ambil(Token(), html))))));
+        Assert.Single(layanan.Catatan.Semua());
 
         // Token yang sama tidak menyimpan dua kali.
         var lagi = await Html("kevin://catur?partai=lichess-abcdEFGH", Post(("aksi", "simpan"), ("token", Ambil(Token(), html))));

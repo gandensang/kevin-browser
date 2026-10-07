@@ -155,7 +155,8 @@ public sealed partial class UjiHalaman : IDisposable
         "kevin://belajar?baru", "kevin://belajar?cari=lichess", "kevin://belajar?cari=", "kevin://belajar?sumber",
         "kevin://belajar?c=tidak-ada", "kevin://belajar?serap", "kevin://belajar?serap&tempel", "kevin://belajar?ai",
         "kevin://belajar?serap&kerja=ABC", "kevin://belajar?tanya", "kevin://belajar?tanya&obrolan=ABC",
-        "kevin://belajar?m=fisika", "kevin://catur", "kevin://catur?tempel", "kevin://catur?akun", "kevin://catur?partai=tidak-ada"]);
+        "kevin://belajar?m=fisika", "kevin://catur", "kevin://catur?tempel", "kevin://catur?akun", "kevin://catur?partai=tidak-ada",
+        "kevin://catur?mesin", "kevin://catur?latihan=tidak-ada"]);
 
     [Theory]
     [MemberData(nameof(SemuaHalaman))]

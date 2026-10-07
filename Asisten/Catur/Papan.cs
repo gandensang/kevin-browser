@@ -191,6 +191,26 @@ public sealed class Papan
         return p;
     }
 
+    /// <summary>
+    /// Posisi yang sama dengan giliran berpindah tanpa langkah (langkah nol),
+    /// untuk melihat ancaman pihak yang baru melangkah. Null kalau pihak yang
+    /// mendapat giliran sedang diskak.
+    /// </summary>
+    public Papan? Lewat()
+    {
+        if (Skak)
+            return null;
+        var p = new Papan
+        {
+            GiliranPutih = !GiliranPutih,
+            rokade = rokade,
+            LangkahSetengah = LangkahSetengah + 1,
+            NomorLangkah = NomorLangkah + (GiliranPutih ? 0 : 1),
+        };
+        Array.Copy(kotak, p.kotak, 64);
+        return p;
+    }
+
     // Benteng yang pindah atau dimakan menghapus hak rokade di sisinya.
     static int HakDiKotak(int i) => i switch { 7 => 1, 0 => 2, 63 => 4, 56 => 8, _ => 0 };
 

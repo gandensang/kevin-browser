@@ -11,7 +11,7 @@ klik tengah. Pointer mouse dikembalikan ke tempat semula di akhir.
 Perintah:
     klik:X:Y[:TOMBOL]   koordinat di dalam jendela; tombol 1 kiri, 2 tengah, 3 kanan
     tombol:MOD+KUNCI    mod: ctrl, shift, alt; kunci: nama keysym X (l, Return, Page_Up, …)
-    ketik:TEKS          huruf, angka, dan . / - : ? & = _ # spasi
+    ketik:TEKS          huruf, angka, dan . / - : ? & = _ # , + ( ) ! ; spasi
     tunggu:DETIK
 Jendela yang disetir: kevin-browser yang paling baru (env PID menimpanya).
 Sebelum setiap perintah, fokus keyboard harus ada di jendela itu; kalau
@@ -52,7 +52,8 @@ T.XTestFakeKeyEvent.argtypes = [c.c_void_p, c.c_uint, c.c_int, c.c_ulong]
 KHUSUS = {'.': ('period', False), '/': ('slash', False), '-': ('minus', False),
           '=': ('equal', False), ' ': ('space', False), ':': ('colon', True),
           '?': ('question', True), '&': ('ampersand', True), '_': ('underscore', True),
-          '#': ('numbersign', True)}
+          '#': ('numbersign', True), ',': ('comma', False), '+': ('equal', True),
+          '(': ('9', True), ')': ('0', True), '!': ('1', True), ';': ('semicolon', False)}
 MOD = {'ctrl': 'Control_L', 'shift': 'Shift_L', 'alt': 'Alt_L'}
 
 

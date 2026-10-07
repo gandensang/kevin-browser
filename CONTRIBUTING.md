@@ -95,9 +95,43 @@ the address to the window that's already open.
   our own chess rules (legal moves, SAN, FEN), checked against known perft
   counts in `UjiPapan`; `Pgn` reads games; `KoleksiPartai` fetches public
   games by username from Lichess and Chess.com (no login) and keeps them on
-  disk; `HalamanCatur` builds `kevin://catur`. The board is the only
-  `kevin://` page with JavaScript (`Inti/Halaman/catur.js`); everything else
-  there is plain forms. The piece images are the BSD-licensed Cburnett set
+  disk; `HalamanCatur` builds `kevin://catur`. The chess pages are the only
+  `kevin://` pages with JavaScript: the board (`papan.js`), the game viewer
+  (`catur.js`), and guess the move (`latihan.js`), all in `Inti/Halaman/`;
+  everything else there is plain forms. Guess the move is a chat with an AI
+  coach (`PelatihCatur`): `latihan.js` picks the important positions with
+  Stockfish (skipping moves with no real choice, `AlasanLewat`), and the
+  coach reads the student's answer and calls one tool, `cek_variasi`. That
+  tool runs in the page, not in C#: the AI round stops, the page runs the
+  requested Stockfish searches, and posts the results back. The verdict
+  (same, equal, better, worse than the game move) is computed in code; the
+  AI only explains it. Every move in every line is checked, for both sides:
+  a line that only works because the opponent plays a weaker reply is
+  flagged, and so is any move that drops 10% winning chance or 1.5 pawns
+  (winning chance alone saturates: in a lost position, giving away the queen
+  barely changes it). A second tool, `lihat_posisi`, shows the AI the
+  board, piece placement, and legal moves after any line, computed in C#.
+  Language models can't follow a chess position in their head: without
+  these tools the coach invented pieces and lines. So every position fact
+  the coach may need is computed and handed to it: material, pawn structure,
+  who attacks what, and mate-in-one threats (a null move, `Papan.Lewat`),
+  also after each move of a tested line. Guards run before an answer is
+  shown, and send it back to the AI, unseen, at most twice each: every
+  piece move the student wrote must really have been reached by Stockfish
+  (being named in a tool call isn't enough when the line stops at an earlier
+  illegal move); a numbered move in the answer ("16... Bd6") must have
+  appeared with that number and side in an evaluated line, not just be
+  legal somewhere; and an answer cut off mid-word is asked for again. The
+  coach uses DeepSeek's thinking mode: slower and pricier, but measured
+  against real games it was the difference between misreading the
+  student's line, giving in to a wrong objection, or inventing defences,
+  and getting all of these right.
+  `MesinCatur` ("chess engine") downloads Stockfish's WebAssembly build once,
+  when the user presses Install, checks its SHA-256 fingerprints, and keeps
+  it in the data folder; it is GPL-3.0 and never part of our package. It runs
+  as a Web Worker inside a hidden iframe on a second scheme, `kevin-mesin://`
+  (see the pitfalls below), and talks to the chess page with `postMessage`.
+  The piece images are the BSD-licensed Cburnett set
   (`THIRD-PARTY-NOTICES.md`). `Penyerap`
   ("absorber") turns study material into notes with one DeepSeek call
   (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
@@ -189,6 +223,27 @@ Each of these cost hours. Read them before touching `Linux/`.
 - **Lichess answers an HTML 404 page to API requests without an
   identifying User-Agent** (for example `/api/games/user/{name}`).
   `KoleksiPartai` sends `KevinBrowser/<version> (+repository URL)`; keep it.
+- **Pages on a local scheme (`kevin://`) can't start Web Workers.** That is
+  why the chess engine lives on `kevin-mesin://`, a second scheme that is
+  secure and CORS-enabled but not local, which must also be listed in
+  `Jendela.SkemaWeb` or its iframe never loads. Three more traps on the same
+  path: `URISchemeResponse.SetHttpHeaders` overwrites `SetContentType`, so
+  `Mesin` writes the `Content-Type` header itself (without it the Worker
+  script silently doesn't run); `postMessage(…, 'kevin://catur')` is never
+  delivered, so the relay posts to `'*'` and the chess page checks
+  `e.origin`; and `fetch()` from a `kevin://` page to `kevin://` itself fails
+  unless the response carries `Access-Control-Allow-Origin: kevin://catur`.
+  Ordinary websites still can't read `kevin://` with that header.
+- **On `kevin://` pages, `history.replaceState` with a full URL throws**,
+  even for the same origin; only the `#fragment` may change. A script that
+  calls it first stops right there.
+- **While a POST form waits for its response, WebKit doesn't repaint the
+  current page**, so script changes (a disabled button, a progress bar)
+  never show. Long actions that need visible progress go through `fetch`
+  (see the Stockfish install).
+- **A focused text box with a blinking caret repaints the window
+  continuously** (about 11% of a core with software rendering). Don't
+  autofocus a text box on pages that stay open while the user reads.
 - **A `kevin://` page that reloads itself** (`<meta http-equiv="refresh">`,
   as the chat page does every 2 seconds while the AI answers) pays for its
   layout on every reload. `position: sticky` alone took the chat page from

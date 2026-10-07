@@ -21,6 +21,9 @@ namespace KevinBrowser;
 public static class HalamanBawaan
 {
     public const string Skema = "kevin";
+
+    /// <summary>Skema mesin catur (bukan lokal, lihat Mesin di proyek Linux): kevin-mesin://mesin/….</summary>
+    public const string SkemaMesin = "kevin-mesin";
     public const string Beranda = "kevin://beranda";
     public const string Belajar = "kevin://belajar";
     public const string Pengaturan = "kevin://pengaturan";
@@ -72,6 +75,10 @@ public static class HalamanBawaan
                 ? (berkas, JenisBerkas(nama))
                 : Halaman(t, null, t["Tidak ditemukan", "Not found"], TidakAda(t, uri));
 
+        // Data untuk skrip halaman catur (JSON) dan mesin catur (kevin-mesin://mesin/…).
+        if (nama is "catur" or "mesin" && layanan?.Catur is IDataHalaman data && await data.Data(uri, isiPost, t) is { } jawaban)
+            return jawaban;
+
         switch (nama)
         {
             case "pengaturan" when layanan is not null:
@@ -108,6 +115,8 @@ public static class HalamanBawaan
     // "kevin://Tentang/?x#y" → "tentang".
     static string NamaDari(string uri)
     {
+        if (uri.StartsWith(SkemaMesin + "://", StringComparison.OrdinalIgnoreCase))
+            return "mesin";
         var sisa = uri.StartsWith("kevin:", StringComparison.OrdinalIgnoreCase) ? uri[6..] : uri;
         sisa = sisa.TrimStart('/');
         var akhir = sisa.IndexOfAny(['/', '?', '#']);

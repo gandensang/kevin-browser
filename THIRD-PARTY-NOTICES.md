@@ -3,6 +3,17 @@
 Kevin Browser is MIT-licensed (see `LICENSE`). It also contains the work
 below, under its own license.
 
+## Stockfish (downloaded, not included)
+
+Guess the move uses Stockfish 19, the WebAssembly build "lite single" from
+stockfish.js (<https://github.com/nmrugg/stockfish.js>), licensed under the
+GNU General Public License version 3. It is not part of Kevin Browser or
+its package: the browser downloads the two files from that project's GitHub
+release only when the user presses the install button, checks their SHA-256
+fingerprints, and keeps them as separate files in its data folder
+(`~/.local/share/kevin-browser/catur/mesin/`). The source code and license
+are in that repository.
+
 ## Chess pieces
 
 The chess piece images (`Inti/Halaman/bidak-*.svg`, used on `kevin://catur`)

@@ -53,6 +53,12 @@ static class Ikon
     /// <summary>Buku terbuka: catatan.</summary>
     public const string Buku = Awal + """<path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3z"/><path d="M21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z"/>""" + Akhir;
 
+    /// <summary>Sasaran: tebak langkah.</summary>
+    public const string Tebak = Awal + """<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>""" + Akhir;
+
+    /// <summary>Bola lampu: petunjuk.</summary>
+    public const string Petunjuk = Awal + """<path d="M9.5 18h5M10.5 21h3M12 3a6 6 0 0 0-3.8 10.6c.7.6 1.3 1.5 1.3 2.4h5c0-.9.6-1.8 1.3-2.4A6 6 0 0 0 12 3z"/>""" + Akhir;
+
     /// <summary>Kotak dengan panah keluar: membuka situs lain.</summary>
     public const string Keluar = Awal + """<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>""" + Akhir;
 }

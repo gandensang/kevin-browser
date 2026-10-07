@@ -61,7 +61,19 @@ static class Mesin
         // atau menyematkannya; yang bisa hanya pemakai (kotak alamat, tombol
         // beranda) dan halaman kevin:// sendiri.
         konteks.RegisterUriScheme(HalamanBawaan.Skema, SajikanHalaman);
-        konteks.GetSecurityManager().RegisterUriSchemeAsLocal(HalamanBawaan.Skema);
+        var keamanan = konteks.GetSecurityManager();
+        keamanan.RegisterUriSchemeAsLocal(HalamanBawaan.Skema);
+
+        // Mesin catur (Stockfish WebAssembly) di skema sendiri, kevin-mesin://,
+        // yang dimuat halaman catur dalam iframe tersembunyi. Halaman skema
+        // lokal tidak boleh membuat Web Worker (terlihat 7 Okt 2026: Worker
+        // gagal di kevin://, berhasil begitu kevin tidak lokal), dan kevin://
+        // tidak mau dilepas dari lokal. Skema ini hanya menyajikan berkas mesin
+        // dan halaman perantaranya; halaman catur bicara dengannya lewat
+        // postMessage.
+        konteks.RegisterUriScheme(HalamanBawaan.SkemaMesin, SajikanHalaman);
+        keamanan.RegisterUriSchemeAsSecure(HalamanBawaan.SkemaMesin);
+        keamanan.RegisterUriSchemeAsCorsEnabled(HalamanBawaan.SkemaMesin);
 
         // Notifikasi WhatsApp Web (IzinNotifikasi). Dipancarkan setiap proses
         // web baru akan dibuat; izinnya terbawa ke proses itu. Notifikasinya
@@ -100,7 +112,9 @@ static class Mesin
             GLib.Functions.GetUserSpecialDir(GLib.UserDirectory.DirectoryDownload) ?? GLib.Functions.GetHomeDir(), TeksPdf.Ambil);
         var buku = new BukuCatatan(FolderCatatan());
         var belajar = new HalamanBelajar(buku, TimeProvider.System, BukaFolder, alat);
-        var catur = new HalamanCatur(new KoleksiPartai(Path.Combine(folderData, FolderCatur), alat.Jaringan), buku, TimeProvider.System);
+        var catur = new HalamanCatur(new KoleksiPartai(Path.Combine(folderData, FolderCatur), alat.Jaringan),
+            new MesinCatur(Path.Combine(folderData, FolderCatur, "mesin"), alat.Jaringan), buku, TimeProvider.System,
+            new PelatihCatur(alat.Pengaturan, new KlienAi(alat.Jaringan), TimeProvider.System) { Pencatat = Catat.Tulis });
         Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar, catur);
 
         setelanWeb = WebKit.Settings.New();
@@ -211,7 +225,24 @@ static class Mesin
 
         using var data = GLib.Bytes.New(isi);
         using var aliran = Gio.MemoryInputStream.NewFromBytes(data);
-        permintaan.Finish(aliran, isi.Length, jenis);
+        using var jawaban = WebKit.URISchemeResponse.New(aliran, isi.Length);
+        jawaban.SetContentType(jenis);
+        jawaban.SetStatus(200, "OK");
+        using var kepala = Soup.MessageHeaders.New(Soup.MessageHeadersType.Response);
+        // SetHttpHeaders menimpa SetContentType: tanpa ini kepala Content-Type
+        // kosong, dan skrip Worker mesin catur tidak dijalankan.
+        kepala.Append("Content-Type", jenis);
+        // Hanya halaman catur yang boleh menyematkan perantara mesin.
+        if (uri.StartsWith(HalamanBawaan.SkemaMesin + ":", StringComparison.Ordinal))
+            kepala.Append("Content-Security-Policy", "frame-ancestors kevin://catur");
+        // fetch() dari halaman kevin:// ke kevin:// sendiri tetap dianggap
+        // permintaan CORS: tanpa kepala ini gagal ("Load failed", terlihat 7 Okt
+        // 2026, juga XMLHttpRequest). Situs biasa tetap tidak bisa membacanya
+        // (dicoba dari http://127.0.0.1), karena kevin:// skema lokal.
+        if (jenis == "application/json" && uri.StartsWith(HalamanBawaan.Skema + "://catur", StringComparison.Ordinal))
+            kepala.Append("Access-Control-Allow-Origin", "kevin://catur");
+        jawaban.SetHttpHeaders(kepala);
+        permintaan.FinishWithResponse(jawaban);
         permintaan.Dispose();
     }
 

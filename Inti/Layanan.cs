@@ -63,6 +63,16 @@ public interface IHalaman
     Task<(string Judul, string Isi)> Buat(string uri, string? isiPost, Teks t);
 }
 
+/// <summary>
+/// Halaman yang juga menyajikan data untuk skripnya sendiri (JSON, berkas
+/// mesin catur), bukan halaman HTML berkerangka.
+/// </summary>
+public interface IDataHalaman
+{
+    /// <summary>Isi dan tipe MIME; null kalau alamat ini halaman biasa.</summary>
+    Task<(byte[] Isi, string Jenis)?> Data(string uri, string? isiPost, Teks t);
+}
+
 /// <summary>Keadaan pemblokir iklan dan pelacak untuk halaman Pengaturan.</summary>
 public sealed record StatusPenyaring(bool SedangMemperbarui, InfoFilter? Info, int FilterAktif, long Ukuran);
 

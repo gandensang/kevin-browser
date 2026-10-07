@@ -39,6 +39,21 @@ sealed class JaringanPalsu : IJaringan
         return status;
     }
 
+    /// <summary>Jawaban unduhan biner: alamat → (status, isi). Tanpa ini: 404.</summary>
+    public Func<PermintaanHttp, (int Status, byte[] Isi)>? JawabUnduh { get; set; }
+
+    public async Task<int> Unduh(PermintaanHttp permintaan, Stream tujuan, long batas, CancellationToken batal)
+    {
+        await Task.Yield();
+        lock (Permintaan)
+            Permintaan.Add(permintaan);
+        var (status, isi) = JawabUnduh?.Invoke(permintaan) ?? (404, []);
+        if (isi.Length > batas)
+            throw new GalatAi(0, "berkasnya lebih besar dari yang diharapkan");
+        await tujuan.WriteAsync(isi, batal);
+        return status;
+    }
+
     /// <summary>Dialirkan seperti DeepSeek: potongan isi, lalu potongan terakhir dengan pemakaian token.</summary>
     public static List<string> Aliran(string isi, string alasan = "stop", int cache = 1200, int baru = 3400, int keluar = 800)
     {

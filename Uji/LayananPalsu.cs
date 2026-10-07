@@ -39,7 +39,9 @@ sealed class LayananPalsu : ILayanan, IDisposable
         Belajar = new HalamanBelajar(Catatan, Waktu, FolderDibuka.Add,
             new AlatSerap(PengaturanAi, Jaringan, FolderUnduhan, (berkas, batal) => PdfKeTeks(berkas, batal)));
         Partai = new KoleksiPartai(Path.Combine(folder, "catur"), Jaringan);
-        Catur = new HalamanCatur(Partai, Catatan, Waktu);
+        MesinCatur = new MesinCatur(Path.Combine(folder, "catur", "mesin"), Jaringan);
+        Pelatih = new PelatihCatur(PengaturanAi, new KlienAi(Jaringan), Waktu);
+        Catur = new HalamanCatur(Partai, MesinCatur, Catatan, Waktu, Pelatih);
     }
 
     public Riwayat Riwayat { get; }
@@ -51,6 +53,8 @@ sealed class LayananPalsu : ILayanan, IDisposable
     public BukuCatatan Catatan { get; }
     public IHalaman? Belajar { get; }
     public KoleksiPartai Partai { get; }
+    public MesinCatur MesinCatur { get; }
+    public PelatihCatur Pelatih { get; }
     public IHalaman? Catur { get; }
     public List<string> FolderDibuka { get; } = [];
     public string FolderUnduhan { get; }
@@ -60,6 +64,14 @@ sealed class LayananPalsu : ILayanan, IDisposable
     /// <summary>Pengganti pdftotext: "PDF" uji berisi teks biasa, halaman dipisah "---".</summary>
     public Func<string, CancellationToken, Task<string?>> PdfKeTeks { get; set; } =
         (berkas, _) => Task.FromResult<string?>(File.ReadAllText(berkas).Replace("---", "\f"));
+
+    /// <summary>Berkas mesin catur seukuran aslinya (isinya nol): cukup untuk <see cref="MesinCatur.Terpasang"/>.</summary>
+    public void PasangMesinTiruan()
+    {
+        var mesin = Directory.CreateDirectory(Path.Combine(folder, "catur", "mesin")).FullName;
+        foreach (var (nama, ukuran, _) in MesinCatur.Berkas)
+            File.WriteAllBytes(Path.Combine(mesin, nama), new byte[ukuran]);
+    }
 
     public long UkuranCache() => 76L * 1024 * 1024;
     public long UkuranDataSitus() => 3L * 1024 * 1024;

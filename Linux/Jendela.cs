@@ -10,7 +10,7 @@ sealed class Jendela
     // Skema yang ditangani WebKit sendiri. Selebihnya (mailto:, zoommtg:,
     // whatsapp:, …) diserahkan ke aplikasi lain lewat xdg-open.
     static readonly string[] SkemaWeb =
-        ["http", "https", "file", "about", "data", "blob", "javascript", "webkit-pdfjs-viewer", HalamanBawaan.Skema];
+        ["http", "https", "file", "about", "data", "blob", "javascript", "webkit-pdfjs-viewer", HalamanBawaan.Skema, HalamanBawaan.SkemaMesin];
 
     readonly Gtk.Application app;
     readonly Setelan setelan;

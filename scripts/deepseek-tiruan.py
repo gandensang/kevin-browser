@@ -10,12 +10,17 @@ sk-tiruan-1234567890). Tanya-jawab: pesan pertama → cari_catatan(kata
 terpanjang) → baca_catatan(hasil pertama) → jawaban pendek bergaya guru yang
 diakhiri pertanyaan. Pesan berikutnya dijawab langsung kalau obrolannya sudah
 membawa catatan yang dibaca. Pesan yang memuat "tabel" dijawab panjang dengan
-tabel dan daftar, untuk melihat tata letaknya. Serap materi: dua catatan
+tabel dan daftar, untuk melihat tata letaknya. Tebak langkah catur: langkah
+(SAN) di jawaban siswa → cek_variasi(langkah pertama, semua langkahnya
+sebagai satu variasi) → jawaban yang mengutip laporan Stockfish dan diakhiri
+baris "Pelajaran:"; tanpa langkah, pelatih menanyakannya; "lanjut" →
+posisi_berikutnya. Serap materi: dua catatan
 contoh. Setiap jawaban ditunda TUNDA_DETIK (bawaan 1,5) supaya halaman
 kemajuan dan tombol Batalkan bisa dicoba. Ringkasan tiap permintaan ditulis
 ke stderr.
 """
 import json
+import os
 import re
 import sys
 import time
@@ -76,6 +81,43 @@ def jawab_tanya(pesan, boleh_tool):
     return {'role': 'assistant', 'content': 'Halo.'}
 
 
+SAN = re.compile(r'(?<![\w])(O-O(?:-O)?|[KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?)(?![\w])')
+
+
+# Uji pohon variasi: TIRUAN_CEK=berkas.json berisi argumen cek_variasi yang
+# dikirim untuk pesan siswa yang memuat kata "pohon" (seperti AI yang mengubah
+# jawaban panjang jadi pohon variasi); TIRUAN_LAPORAN=berkas menyimpan laporan
+# tool terakhir.
+CEK = os.environ.get('TIRUAN_CEK')
+LAPORAN = os.environ.get('TIRUAN_LAPORAN')
+
+
+def jawab_catur(pesan, boleh_tool):
+    akhir = pesan[-1]
+    if akhir['role'] == 'tool' and LAPORAN:
+        with open(LAPORAN, 'a') as f:
+            f.write(akhir['content'] + '\n\n=====\n\n')
+    if akhir['role'] == 'user' and akhir['content'].startswith('[Pesan otomatis'):
+        laporan = next((p['content'] for p in reversed(pesan) if p['role'] == 'tool'), '')
+        return {'role': 'assistant', 'content': f'Jawaban tiruan sesudah pesan otomatis. Laporan:\n\n{laporan}\n\nPelajaran: tiruan.'}
+    if CEK and akhir['role'] == 'user' and 'pohon' in akhir['content'].split('Jawaban siswa:')[-1]:
+        with open(CEK) as f:
+            return panggil('call_pohon', 'cek_variasi', json.load(f))
+    if akhir['role'] == 'tool' or not boleh_tool:
+        laporan = akhir['content'] if akhir['role'] == 'tool' else ''
+        return {'role': 'assistant', 'content':
+                f'Jawaban tiruan dari pelatih. Yang dikatakan Stockfish:\n\n{laporan}\n\n'
+                'Pelajaran: sebelum melangkah, periksa dulu ancaman lawan (pelajaran tiruan).'}
+    teks = akhir['content'].split('Jawaban siswa:')[-1]
+    if teks.strip().lower() in ('lanjut', 'next', 'ya', 'yes'):
+        return {'role': 'assistant', 'content': 'Oke, kita lanjut. (tiruan)',
+                'tool_calls': panggil('call_lanjut', 'posisi_berikutnya', {})['tool_calls']}
+    langkah = SAN.findall(teks)
+    if not langkah:
+        return {'role': 'assistant', 'content': 'Menarik! Tapi langkah apa yang kamu pilih di posisi ini? (tiruan)'}
+    return panggil('call_catur', 'cek_variasi', {'utama': langkah[0], 'variasi': [' '.join(langkah)] if len(langkah) > 1 else []})
+
+
 class Penangan(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
@@ -105,7 +147,8 @@ class Penangan(BaseHTTPRequestHandler):
             akhir = {'choices': [{'index': 0, 'delta': {'content': ''}, 'finish_reason': 'stop'}], 'usage': PAKAI}
             self.kirim(200, f'data: {json.dumps(potongan)}\n\ndata: {json.dumps(akhir)}\n\ndata: [DONE]\n\n', 'text/event-stream')
             return
-        hasil = jawab_tanya(pesan, badan.get('tool_choice') != 'none')
+        catur = any(a['function']['name'] == 'cek_variasi' for a in badan.get('tools', []))
+        hasil = (jawab_catur if catur else jawab_tanya)(pesan, badan.get('tool_choice') != 'none')
         self.kirim(200, {'object': 'chat.completion', 'model': badan['model'],
                          'choices': [{'index': 0, 'message': hasil, 'finish_reason': 'tool_calls' if 'tool_calls' in hasil else 'stop'}],
                          'usage': PAKAI})
