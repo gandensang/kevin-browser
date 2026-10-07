@@ -89,7 +89,9 @@ the address to the window that's already open.
   reads and writes the notes, plain Markdown files in `~/kevin-catatan`, one
   folder per subject, and never touches anything outside that folder.
   `Markah` turns a note into HTML, escaping everything: notes may contain
-  text from websites. `HalamanBelajar` builds the pages. `Penyerap`
+  text from websites. `HalamanBelajar` builds the pages; their icons are
+  small inline SVGs drawn by hand in `Ikon`, so there is no icon font and no
+  third-party license. `Penyerap`
   ("absorber") turns study material into notes with one DeepSeek call
   (`KlienAi`, your own key in `PengaturanAi`): code reads the file, checks
   `sumber.md` so nothing is processed twice, and writes the notes; the model

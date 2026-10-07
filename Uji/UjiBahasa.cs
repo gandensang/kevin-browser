@@ -30,6 +30,9 @@ public class UjiTeks
         var kamis = new DateTime(2026, 10, 1);
         Assert.Equal("Kamis, 1 Oktober 2026", Id.Tanggal(kamis));
         Assert.Equal("Thursday, 1 October 2026", En.Tanggal(kamis));
+        Assert.Equal("1 Okt 2026", Id.TanggalSingkat(kamis));
+        Assert.Equal("1 Oct", En.TanggalSingkat(kamis, denganTahun: false));
+        Assert.Equal("17 Agu", Id.TanggalSingkat(new DateTime(2026, 8, 17), false));
 
         var jam = new DateTimeOffset(2026, 10, 1, 9, 5, 0, TimeSpan.Zero);
         Assert.Equal("09.05", Id.Jam(jam));

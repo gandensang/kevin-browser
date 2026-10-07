@@ -50,61 +50,114 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
             : kueri["sumber"] is not null ? Sumber(t)
             : kueri["cari"] is { } kata ? Cari(t, kata)
             : kueri["c"] is { } nama ? SatuCatatan(t, kueri, mapel, nama, simpan)
+            : mapel is not null ? DaftarMapel(t, mapel)
             : Daftar(t, pesan);
     }
 
+    // Beranda Belajar: aksi utama, lalu satu kartu per mata pelajaran dengan
+    // catatan terbarunya. Mata pelajaran dengan banyak catatan dibuka lengkap
+    // di halamannya sendiri (?m=…), jadi beranda tetap pendek.
     (string, string) Daftar(Teks t, string? pesan)
     {
         var semua = buku.Semua();
-        var isi = new StringBuilder($"""
-            <h1>{t["Belajar", "Learn"]}</h1>
-            <p class="pembuka">{t["Catatan pelajaran, tersimpan sebagai berkas biasa di laptop ini.",
-                "Study notes, saved as ordinary files on this laptop."]}</p>
-            {HalamanPengaturan.Pesan(pesan)}
-            {KotakCari(t, "")}
-            <p class="tombol-tombol"><a class="tombol utama" href="{HalamanBawaan.Belajar}?baru">{t["Tulis catatan", "Write a note"]}</a>{(tanya is null ? ""
-                : $""" <a class="tombol" href="{HalamanBawaan.Belajar}?tanya">{t["Tanya", "Ask"]}</a>""")}{(serap is null ? ""
-                : $""" <a class="tombol" href="{HalamanBawaan.Belajar}?serap">{t["Serap materi", "Turn material into notes"]}</a>""")}{(buku.AdaSumber
-                ? $""" <a class="tombol" href="{HalamanBawaan.Belajar}?sumber">{t["Dokumen sumber", "Source documents"]}</a>"""
-                : "")}</p>
-
-            """);
+        var isi = new StringBuilder(Kepala(t, t["Belajar", "Learn"], jejak: false, aksi: KotakCari(t, ""),
+            keterangan: t["Catatan pelajaranmu, tersimpan sebagai berkas biasa di laptop ini.", "Your study notes, saved as ordinary files on this laptop."]));
+        isi.Append(HalamanPengaturan.Pesan(pesan)).Append('\n')
+            .Append($"""<nav class="aksi-belajar" aria-label="{t["Mulai", "Start"]}">""").Append('\n');
+        if (tanya is not null)
+            isi.Append(KartuAksi(HalamanBawaan.Belajar + "?tanya", Ikon.Tanya, t["Tanya AI", "Ask AI"],
+                t["Belajar sambil mengobrol, dijelaskan pelan-pelan dari catatanmu.", "Learn by chatting, explained step by step from your notes."], true));
+        if (serap is not null)
+            isi.Append(KartuAksi(HalamanBawaan.Belajar + "?serap", Ikon.Serap, t["Serap materi", "Turn material into notes"],
+                t["PDF atau teks pelajaran diolah jadi catatan per topik.", "A PDF or lesson text, turned into notes by topic."], false));
+        isi.Append(KartuAksi(HalamanBawaan.Belajar + "?baru", Ikon.Tulis, t["Tulis catatan", "Write a note"],
+            t["Catatan baru yang kamu ketik sendiri.", "A new note you type yourself."], tanya is null)).Append("</nav>\n");
 
         if (semua.Count == 0)
             isi.Append($"""
-                <p>{t["Belum ada catatan. Tulis yang pertama dengan tombol di atas. Berkas .md yang ditaruh di folder catatan, misalnya dari aplikasi lain, juga muncul di sini.",
-                    "No notes yet. Write the first one with the button above. Any .md file placed in the notes folder, for example by another app, shows up here too."]}</p>
+                <div class="kosong">
+                <p><strong>{t["Belum ada catatan.", "No notes yet."]}</strong></p>
+                <p>{t["Mulai dengan menyerap materi pelajaran atau menulis catatan sendiri. Berkas .md yang ditaruh di folder catatan, misalnya dari aplikasi lain, juga muncul di sini.",
+                    "Start by turning study material into notes, or write one yourself. Any .md file placed in the notes folder, for example by another app, shows up here too."]}</p>
+                </div>
 
                 """);
-
-        // Banyak catatan: daftarnya tertutup, cukup nama mata pelajarannya.
-        var terbuka = semua.Count <= 40 ? " open" : "";
-        foreach (var kelompok in semua.GroupBy(c => c.Mapel).OrderBy(g => g.Key is null).ThenBy(g => NamaMapel(g.Key), StringComparer.OrdinalIgnoreCase))
+        else
         {
-            var nama = kelompok.Key is null ? t["Tanpa mata pelajaran", "No subject"] : NamaMapel(kelompok.Key);
-            isi.Append($"""
-                <details class="mapel"{terbuka}>
-                <summary><strong>{HtmlEncode(nama)}</strong> <span class="catatan">{Jumlah(t, kelompok.Count())}</span></summary>
-                <ul class="daftar-catatan">
-
-                """);
-            foreach (var c in Urut(kelompok))
-                isi.Append($"""<li><a href="{HtmlEncode(Alamat(c))}">{HtmlEncode(c.Judul)}</a></li>""").Append('\n');
-            if (kelompok.Key is not null)
-                isi.Append($"""<li class="tambah"><a href="{HtmlEncode($"{HalamanBawaan.Belajar}?baru&m={Uri.EscapeDataString(kelompok.Key)}")}">+ {t["Tulis catatan", "Write a note"]}</a></li>""").Append('\n');
-            isi.Append("</ul>\n</details>\n");
+            isi.Append($"""<h2 class="judul-bagian">{t["Mata pelajaran", "Subjects"]} <span>{Jumlah(t, semua.Count)}</span></h2>""")
+                .Append("\n<div class=\"kisi-mapel\">\n");
+            foreach (var kelompok in semua.GroupBy(c => c.Mapel).OrderBy(g => g.Key is null).ThenBy(g => NamaMapel(g.Key), StringComparer.OrdinalIgnoreCase))
+                isi.Append(KartuMapel(t, kelompok.Key, [.. Urut(kelompok)]));
+            isi.Append("</div>\n");
         }
 
         var folder = $"<code>{HtmlEncode(Tampilan(buku.Folder))}</code>";
-        var buka = bukaFolder is null ? ""
+        var tautan = bukaFolder is null ? ""
             : $""" · <a href="{HalamanBawaan.Belajar}?buka&amp;token={TokenSekali.Buat()}">{t["Buka foldernya", "Open the folder"]}</a>""";
+        if (buku.AdaSumber)
+            tautan += $""" · <a href="{HalamanBawaan.Belajar}?sumber">{t["Dokumen sumber", "Source documents"]}</a>""";
         if (serap is not null)
-            buka += $""" · <a href="{HalamanBawaan.Belajar}?ai">{t["Asisten AI", "AI assistant"]}</a>""";
+            tautan += $""" · <a href="{HalamanBawaan.Belajar}?ai">{t["Asisten AI", "AI assistant"]}</a>""";
         isi.Append($"""
-            <p class="catatan">{t[$"Tersimpan di {folder}, satu folder per mata pelajaran. Berkasnya bisa dibuka dengan penyunting teks apa saja.",
-                $"Saved in {folder}, one folder per subject. The files open in any text editor."]}{buka}</p>
+            <p class="kaki-belajar">{Ikon.Folder}<span>{t[$"Tersimpan di {folder}, satu folder per mata pelajaran. Berkasnya bisa dibuka dengan penyunting teks apa saja.",
+                $"Saved in {folder}, one folder per subject. The files open in any text editor."]}{tautan}</span></p>
             """);
         return (t["Belajar", "Learn"], isi.ToString());
+    }
+
+    static string KartuAksi(string alamat, string ikon, string judul, string keterangan, bool utama) => $"""
+        <a class="kartu-aksi{(utama ? " utama" : "")}" href="{alamat}"><span class="ikon-kotak">{ikon}</span><span><strong>{judul}</strong><small>{keterangan}</small></span></a>
+
+        """;
+
+    const int KartuMaks = 5;
+
+    // Satu mata pelajaran di beranda: catatan terbaru, paling banyak KartuMaks.
+    string KartuMapel(Teks t, string? mapel, List<Catatan> catatan)
+    {
+        var nama = mapel is null ? t["Tanpa mata pelajaran", "No subject"] : NamaMapel(mapel);
+        var judul = mapel is null ? HtmlEncode(nama) : $"""<a href="{HtmlEncode(AlamatMapel(mapel))}">{HtmlEncode(nama)}</a>""";
+        var isi = new StringBuilder($"""
+            <section class="kartu-mapel {Warna(mapel)}">
+            <header>{Lencana(mapel)}<div><h3>{judul}</h3><span class="jumlah">{Jumlah(t, catatan.Count)}</span></div></header>
+            <ul>
+
+            """);
+        // Tanpa mata pelajaran tidak punya halaman sendiri, jadi semuanya tampil di sini.
+        foreach (var c in mapel is null ? catatan : catatan.Take(KartuMaks))
+            isi.Append(BarisCatatan(t, c)).Append('\n');
+        isi.Append("</ul>\n");
+        if (mapel is not null)
+            isi.Append("<footer>")
+                .Append(catatan.Count > KartuMaks
+                    ? $"""<a href="{HtmlEncode(AlamatMapel(mapel))}">{t[$"Semua {catatan.Count} catatan", $"All {catatan.Count} notes"]}</a>"""
+                    : "")
+                .Append($"""<a class="tambah" href="{HtmlEncode(AlamatBaru(mapel))}">+ {t["Tulis catatan", "Write a note"]}</a></footer>""")
+                .Append('\n');
+        return isi.Append("</section>\n").ToString();
+    }
+
+    string BarisCatatan(Teks t, Catatan c) =>
+        $"""<li><a href="{HtmlEncode(Alamat(c))}"><span>{HtmlEncode(c.Judul)}</span><time>{Tanggal(t, c.Diubah)}</time></a></li>""";
+
+    // Tanggal di daftar: tanpa tahun kalau tahun ini.
+    string Tanggal(Teks t, DateTime diubah) => t.TanggalSingkat(diubah, diubah.Year != waktu.GetLocalNow().Year);
+
+    // ?m=fisika: semua catatan satu mata pelajaran.
+    (string, string) DaftarMapel(Teks t, string mapel)
+    {
+        var catatan = Urut(buku.Semua().Where(c => c.Mapel == mapel)).ToList();
+        if (catatan.Count == 0)
+            return TidakAda(t);
+        var nama = NamaMapel(mapel);
+        var aksi = $"""<a class="tombol utama" href="{HtmlEncode(AlamatBaru(mapel))}">{Ikon.Tulis}{t["Tulis catatan", "Write a note"]}</a>""";
+        if (tanya is not null)
+            aksi += $"""<a class="tombol" href="{HalamanBawaan.Belajar}?tanya">{Ikon.Tanya}{t["Tanya AI", "Ask AI"]}</a>""";
+        var isi = new StringBuilder(Kepala(t, Lencana(mapel) + HtmlEncode(nama), keterangan: Jumlah(t, catatan.Count), aksi: aksi, kelas: Warna(mapel)));
+        isi.Append("<ul class=\"daftar-catatan\">\n");
+        foreach (var c in catatan)
+            isi.Append(BarisCatatan(t, c)).Append('\n');
+        return (nama, isi.Append("</ul>\n").ToString());
     }
 
     (string, string) SatuCatatan(Teks t, Kueri kueri, string? mapel, string nama, bool simpan)
@@ -127,26 +180,65 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     (string, string) Lihat(Teks t, Catatan c, string isi, string? pesan)
     {
         var penaut = buku.Penaut(c.Mapel);
-        var badan = Markah.KeHtml(TanpaJudul(isi), sasaran => penaut(sasaran) is { } tujuan ? (Alamat(tujuan), tujuan.Judul) : null, geserJudul: 1);
+        var (sumber, teks) = PisahSumber(TanpaJudul(isi));
+        var badan = Markah.KeHtml(teks, sasaran => penaut(sasaran) is { } tujuan ? (Alamat(tujuan), tujuan.Judul) : null, geserJudul: 1);
         var jalur = Tampilan(Path.Combine(buku.Folder, c.Mapel ?? "", c.Nama + ".md"));
+
+        var meta = new StringBuilder();
+        if (c.Mapel is not null)
+            meta.Append($"""<a class="chip-mapel {Warna(c.Mapel)}" href="{HtmlEncode(AlamatMapel(c.Mapel))}">{HtmlEncode(NamaMapel(c.Mapel))}</a>""");
+        meta.Append($"""<span>{t["Diubah", "Changed"]} {t.TanggalSingkat(c.Diubah)}</span>""");
+        if (sumber is not null)
+            meta.Append($"""<span>{t["Sumber:", "Source:"]} {HtmlEncode(sumber)}</span>""");
+
+        var samping = new StringBuilder();
+        if (tanya is not null)
+            samping.Append($"""<a class="tombol utama" href="{HtmlEncode(HalamanTanya.AlamatTentang(c))}">{Ikon.Tanya}{t["Tanya tentang catatan ini", "Ask about this note"]}</a>""").Append('\n');
+        samping.Append($"""<a class="tombol" href="{HtmlEncode(Alamat(c) + "&sunting")}">{Ikon.Tulis}{t["Sunting", "Edit"]}</a>""").Append('\n');
+        if (c.Mapel is not null)
+        {
+            samping.Append($"""<h2>{HtmlEncode(NamaMapel(c.Mapel))}</h2>""").Append("\n<ul class=\"catatan-lain\">\n");
+            foreach (var lain in Urut(buku.Semua().Where(x => x.Mapel == c.Mapel)).Take(15))
+                samping.Append($"""<li><a href="{HtmlEncode(Alamat(lain))}"{(lain.Nama == c.Nama ? " aria-current=\"page\"" : "")}>{HtmlEncode(lain.Judul)}</a></li>""").Append('\n');
+            samping.Append("</ul>\n");
+        }
+        samping.Append($"""<p class="berkas">{t["Berkas", "File"]} <code>{HtmlEncode(jalur)}</code></p>""");
+
         return (c.Judul, $"""
+            <div class="tata-catatan">
+            <article class="kertas">
             {Jejak(t, c.Mapel)}
             <h1>{HtmlEncode(c.Judul)}</h1>
+            <p class="meta">{meta}</p>
             {HalamanPengaturan.Pesan(pesan)}
-            <article class="isi-catatan">
-            {badan}</article>
-            <p class="tombol-tombol"><a class="tombol" href="{HtmlEncode(Alamat(c) + "&sunting")}">{t["Sunting", "Edit"]}</a>{(tanya is null ? ""
-                : $""" <a class="tombol" href="{HtmlEncode(HalamanTanya.AlamatTentang(c))}">{t["Tanya tentang catatan ini", "Ask about this note"]}</a>""")}</p>
-            <p class="catatan">{t["Berkas", "File"]} <code>{HtmlEncode(jalur)}</code> · {t["diubah", "changed"]} {t.Tanggal(c.Diubah)}</p>
+            <div class="isi-catatan">
+            {badan}</div>
+            </article>
+            <aside class="samping">
+            {samping}
+            </aside>
+            </div>
             """);
+    }
+
+    // Baris "Sumber: …" paling atas (ditulis waktu materi diserap) jadi
+    // keterangan di bawah judul, bukan paragraf pertama.
+    static (string? Sumber, string Isi) PisahSumber(string isi)
+    {
+        var baris = isi.Split('\n').ToList();
+        var letak = baris.FindIndex(b => b.Trim().Length > 0);
+        if (letak < 0 || !baris[letak].TrimStart().StartsWith("Sumber:", StringComparison.OrdinalIgnoreCase))
+            return (null, isi);
+        var sumber = baris[letak].Trim()["Sumber:".Length..].Trim();
+        baris.RemoveAt(letak);
+        return (sumber.Length == 0 ? null : sumber, string.Join('\n', baris));
     }
 
     (string, string) Sunting(Teks t, Catatan c, string isi, string sidik, string? pesan)
     {
         var judul = t["Sunting catatan", "Edit note"];
         return (judul, $"""
-            {Jejak(t, c.Mapel)}
-            <h1>{judul}</h1>
+            {Kepala(t, judul, c.Mapel)}
             {HalamanPengaturan.Pesan(pesan)}
             <form class="tulis" action="{HtmlEncode(Alamat(c))}" method="post">
               <input type="hidden" name="aksi" value="simpan">
@@ -211,8 +303,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     {
         var judulHalaman = t["Tulis catatan", "Write a note"];
         return (judulHalaman, $"""
-            {Jejak(t, null)}
-            <h1>{judulHalaman}</h1>
+            {Kepala(t, judulHalaman)}
             {HalamanPengaturan.Pesan(pesan)}
             <form class="tulis" action="{HalamanBawaan.Belajar}?baru" method="post">
               <input type="hidden" name="aksi" value="simpan">
@@ -232,12 +323,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     (string, string) Cari(Teks t, string kata)
     {
         var judul = t["Cari di catatan", "Search notes"];
-        var isi = new StringBuilder($"""
-            {Jejak(t, null)}
-            <h1>{judul}</h1>
-            {KotakCari(t, kata)}
-
-            """);
+        var isi = new StringBuilder(Kepala(t, judul, aksi: KotakCari(t, kata)));
         var bagian = kata.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         var hasil = buku.Cari(kata);
         if (bagian.Length == 0)
@@ -263,9 +349,7 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
         var judul = t["Dokumen sumber", "Source documents"];
         var isi = buku.BacaSumber();
         return (judul, $"""
-            {Jejak(t, null)}
-            <h1>{judul}</h1>
-            <p class="pembuka">{t["Dokumen yang sudah diolah jadi catatan.", "Documents already turned into notes."]}</p>
+            {Kepala(t, judul, keterangan: t["Dokumen yang sudah diolah jadi catatan.", "Documents already turned into notes."])}
             {(isi is null ? $"<p>{t["Belum ada.", "None yet."]}</p>" : $"<article class=\"isi-catatan\">\n{Markah.KeHtml(TanpaJudul(isi), geserJudul: 1)}</article>")}
             """);
     }
@@ -303,22 +387,51 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
     {
         var judul = t["Catatan tidak ditemukan", "Note not found"];
         return (judul, $"""
-            <h1>{judul}</h1>
+            {Kepala(t, judul)}
             <p>{t["Mungkin sudah dipindah atau dihapus.", "It may have been moved or deleted."]}</p>
             <p><a href="{HalamanBawaan.Belajar}">{t["Semua catatan", "All notes"]}</a></p>
             """);
     }
 
+    // Satu isian tanpa tombol: Enter mengirimnya (tanpa JavaScript).
     static string KotakCari(Teks t, string kata) =>
-        $"""
-        <form class="cari kiri" action="{HalamanBawaan.Belajar}" method="get" role="search">
-          <input type="search" name="cari" value="{HtmlEncode(kata)}" placeholder="{t["Cari di catatan", "Search notes"]}" aria-label="{t["Cari di catatan", "Search notes"]}">
-          <button type="submit">{t["Cari", "Search"]}</button>
-        </form>
-        """;
+        $"""<form class="cari-catatan" action="{HalamanBawaan.Belajar}" method="get" role="search">{Ikon.Cari}<input type="search" name="cari" value="{HtmlEncode(kata)}" placeholder="{t["Cari di catatan", "Search notes"]}" aria-label="{t["Cari di catatan", "Search notes"]}"></form>""";
 
     internal static string Jejak(Teks t, string? mapel) =>
-        $"""<p class="jejak"><a href="{HalamanBawaan.Belajar}">{t["Belajar", "Learn"]}</a>{(mapel is null ? "" : $" › {HtmlEncode(NamaMapel(mapel))}")}</p>""";
+        $"""<p class="jejak"><a href="{HalamanBawaan.Belajar}">{t["Belajar", "Learn"]}</a>{(mapel is null ? ""
+            : $""" › <a href="{HtmlEncode(AlamatMapel(mapel))}">{HtmlEncode(NamaMapel(mapel))}</a>""")}</p>""";
+
+    /// <summary>
+    /// Kepala halaman Belajar: jejak, judul (HTML), keterangan, dan aksi di
+    /// kanan (tombol, kotak cari).
+    /// </summary>
+    internal static string Kepala(Teks t, string judul, string? mapel = null, string? keterangan = null, string aksi = "", bool jejak = true, string kelas = "") =>
+        $"""
+        <header class="kepala-belajar{(kelas.Length == 0 ? "" : " " + kelas)}">
+          <div>{(jejak ? Jejak(t, mapel) : "")}<h1>{judul}</h1>{(keterangan is null ? "" : $"<p class=\"keterangan\">{keterangan}</p>")}</div>{(aksi.Length == 0 ? "" : $"\n  <div class=\"aksi\">{aksi}</div>")}
+        </header>
+        """;
+
+    // "Bahasa Indonesia" → "BI", "Fisika" → "F", "IPA" → "IPA".
+    static string Lencana(string? mapel)
+    {
+        var kata = NamaMapel(mapel).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var huruf = kata.Length == 0 ? "•"
+            : kata.Length > 1 ? $"{kata[0][0]}{kata[1][0]}"
+            : Singkatan.Contains(kata[0]) ? kata[0]
+            : kata[0][..1];
+        return $"""<span class="lencana-mapel" aria-hidden="true">{HtmlEncode(huruf.ToUpperInvariant())}</span>""";
+    }
+
+    // Warna tetap per mata pelajaran, dihitung dari namanya; string.GetHashCode
+    // tidak bisa dipakai karena berubah setiap proses.
+    static string Warna(string? mapel)
+    {
+        var h = 0u;
+        foreach (var ch in mapel ?? "")
+            h = h * 31 + ch;
+        return $"warna-{h % 8}";
+    }
 
     static string PetunjukFormat(Teks t) =>
         t[
@@ -329,6 +442,10 @@ public sealed class HalamanBelajar(BukuCatatan buku, TimeProvider waktu, Action<
 
     internal static string Alamat(Catatan c) =>
         HalamanBawaan.Belajar + "?" + (c.Mapel is null ? "" : $"m={Uri.EscapeDataString(c.Mapel)}&") + $"c={Uri.EscapeDataString(c.Nama)}";
+
+    static string AlamatMapel(string mapel) => $"{HalamanBawaan.Belajar}?m={Uri.EscapeDataString(mapel)}";
+
+    static string AlamatBaru(string mapel) => $"{HalamanBawaan.Belajar}?baru&m={Uri.EscapeDataString(mapel)}";
 
     // Yang terbaru dulu (awalan tanggal nama berkas), lalu menurut judul.
     static IEnumerable<Catatan> Urut(IEnumerable<Catatan> catatan) =>

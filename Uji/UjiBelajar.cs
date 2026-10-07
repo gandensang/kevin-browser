@@ -68,10 +68,10 @@ public sealed partial class UjiBelajar : IDisposable
 
         var html = await Html("kevin://belajar");
 
-        Assert.Contains("<summary><strong>Fisika</strong> <span class=\"catatan\">2 catatan</span></summary>", html);
-        Assert.Contains("<summary><strong>IPA</strong>", html);
-        Assert.Contains("<summary><strong>Tanpa mata pelajaran</strong>", html);
-        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-parabola\">Gerak Parabola</a>", html);
+        Assert.Contains("<h3><a href=\"kevin://belajar?m=fisika\">Fisika</a></h3><span class=\"jumlah\">2 catatan</span>", html);
+        Assert.Contains("<span class=\"lencana-mapel\" aria-hidden=\"true\">IPA</span>", html);
+        Assert.Contains("<h3>Tanpa mata pelajaran</h3>", html);
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-parabola\"><span>Gerak Parabola</span><time>", html);
         Assert.Contains("Sel &lt;hewan&gt;", html);
         Assert.Contains("href=\"kevin://belajar?baru&amp;m=fisika\"", html);
         Assert.Contains("href=\"kevin://belajar?sumber\"", html);
@@ -93,13 +93,47 @@ public sealed partial class UjiBelajar : IDisposable
         Assert.Contains("<title>Gerak Parabola · Kevin Browser</title>", html);
         Assert.Contains("<h1>Gerak Parabola</h1>", html);
         Assert.Single(Regex.Matches(html, "Gerak Parabola</h"));   // judul tidak diulang di isi
-        Assert.Contains("<p>Sumber: handout</p>", html);
+        Assert.Contains("<span>Sumber: handout</span>", html);   // keterangan di bawah judul, bukan paragraf pertama
+        Assert.DoesNotContain("<p>Sumber:", html);
         Assert.Contains("<h3>Rumus</h3>", html);
         Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan\">Kesalahan umum</a>", html);
         Assert.Contains("<span class=\"putus\">tidak-ada</span>", html);
         Assert.Contains("href=\"kevin://belajar?m=fisika&amp;c=2026-09-parabola&amp;sunting\"", html);
         Assert.Contains("fisika/2026-09-parabola.md</code>", html);
-        Assert.Contains("<a href=\"kevin://belajar\">Belajar</a> › Fisika", html);
+        Assert.Contains("<a href=\"kevin://belajar\">Belajar</a> › <a href=\"kevin://belajar?m=fisika\">Fisika</a>", html);
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-kesalahan\">Kesalahan umum</a></li>", html);   // catatan lain di samping
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika&amp;c=2026-09-parabola\" aria-current=\"page\">Gerak Parabola</a>", html);
+    }
+
+    [Fact]
+    public async Task SatuMapel()
+    {
+        Tulis("fisika/2026-09-parabola.md", "# Gerak Parabola\n");
+        Tulis("fisika/2026-08-newton.md", "# Hukum Newton\n");
+        Tulis("ipa/2026-09-sel.md", "# Sel\n");
+
+        var html = await Html("kevin://belajar?m=fisika");
+
+        Assert.Contains("<title>Fisika · Kevin Browser</title>", html);
+        Assert.Contains("<h1><span class=\"lencana-mapel\" aria-hidden=\"true\">F</span>Fisika</h1>", html);
+        Assert.Contains("<p class=\"keterangan\">2 catatan</p>", html);
+        Assert.Contains("href=\"kevin://belajar?baru&amp;m=fisika\"", html);
+        Assert.True(html.IndexOf("Gerak Parabola", StringComparison.Ordinal) < html.IndexOf("Hukum Newton", StringComparison.Ordinal));
+        Assert.DoesNotContain("Sel", html);
+        Assert.Contains("Catatan tidak ditemukan", await Html("kevin://belajar?m=kimia"));
+    }
+
+    [Fact]
+    public async Task KartuMapelMeringkasCatatanBanyak()
+    {
+        for (var i = 1; i <= 7; i++)
+            Tulis($"fisika/2026-09-{i:00}-bab.md", $"# Bab {i}\n");
+
+        var html = await Html("kevin://belajar");
+
+        Assert.Equal(5, Regex.Count(html, "<span>Bab \\d</span>"));
+        Assert.Contains("<a href=\"kevin://belajar?m=fisika\">Semua 7 catatan</a>", html);
+        Assert.Equal(7, Regex.Count(await Html("kevin://belajar?m=fisika"), "<span>Bab \\d</span>"));
     }
 
     [Fact]
@@ -251,8 +285,8 @@ public sealed partial class UjiBelajar : IDisposable
 
         var html = await Html("kevin://belajar");
         Assert.Contains("<h1>Learn</h1>", html);
-        Assert.Contains("<span class=\"catatan\">1 note</span>", html);
-        Assert.Contains(">Write a note</a>", html);
+        Assert.Contains("<span class=\"jumlah\">1 note</span>", html);
+        Assert.Contains("+ Write a note</a>", html);
         Assert.Contains("Edit</a>", await Html("kevin://belajar?m=fisika&c=2026-09-parabola"));
     }
 }

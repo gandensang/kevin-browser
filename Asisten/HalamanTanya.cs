@@ -36,7 +36,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
 
     (string, string) Mulai(Teks t, Kueri kueri, bool post)
     {
-        var judul = t["Tanya", "Ask"];
+        var judul = t["Tanya AI", "Ask AI"];
         var mapel = string.IsNullOrEmpty(kueri["m"]) ? null : kueri["m"];
         var lampiran = kueri["c"] is { } nama ? buku.Ambil(mapel, nama) : null;
         var aksi = lampiran is null ? Alamat : AlamatTentang(lampiran);
@@ -54,7 +54,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         }
 
         return (judul, $"""
-            {HalamanBelajar.Jejak(t, null)}
+            <div class="ruang-obrolan">
             {Kepala(t, judul, lampiran, false)}
             {HalamanSerap.TanpaKunci(t, Pengaturan)}
             <div class="obrolan">
@@ -64,6 +64,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
             {HalamanPengaturan.Pesan(pesan)}
             {Formulir(t, aksi, pertanyaan, true)}
             {Kaki(t, Pengaturan.ModelTanya, [])}
+            </div>
             """);
     }
 
@@ -83,11 +84,10 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
 
     (string, string) Obrolan(Teks t, Kueri kueri, string id, bool post)
     {
-        var judul = t["Tanya", "Ask"];
+        var judul = t["Tanya AI", "Ask AI"];
         if (penanya.Ambil(id) is not { } obrolan)
             return (judul, $"""
-                {HalamanBelajar.Jejak(t, null)}
-                <h1>{judul}</h1>
+                {HalamanBelajar.Kepala(t, judul)}
                 {HalamanPengaturan.Pesan(t["Obrolan ini tidak ditemukan. Obrolan hanya disimpan selama browser terbuka.",
                     "This conversation wasn't found. Conversations are kept only while the browser is open."])}
                 <p class="tombol-tombol"><a class="tombol" href="{Alamat}">{t["Obrolan baru", "New chat"]}</a></p>
@@ -118,7 +118,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         if (k.Bekerja)
             isi.Append("""<meta http-equiv="refresh" content="2">""").Append('\n');
         isi.Append($"""
-            {HalamanBelajar.Jejak(t, null)}
+            <div class="ruang-obrolan">
             {Kepala(t, judul, obrolan.Lampiran, true)}
             <div class="obrolan">
             {Sapaan(t, obrolan.Lampiran)}
@@ -137,7 +137,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         else
             isi.Append(HalamanPengaturan.Pesan(pesan)).Append('\n')
                 .Append(Formulir(t, AlamatObrolan(obrolan) + "#akhir", pertanyaan, false)).Append('\n');
-        isi.Append(Kaki(t, obrolan.Model, k.Giliran));
+        isi.Append(Kaki(t, obrolan.Model, k.Giliran)).Append("\n</div>");
         return (k.Bekerja ? t["Menjawab…", "Answering…"] : judul, isi.ToString());
     }
 
@@ -147,7 +147,7 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
             .Append($"""<p class="gelembung siswa">{HtmlEncode(g.Pertanyaan)}</p>""").Append('\n');
         if (g.Jawaban is { } jawaban)
         {
-            isi.Append($"""<div class="gelembung ai isi-catatan">{Markah.KeHtml(jawaban, tautan, geserJudul: 2)}</div>""").Append('\n');
+            isi.Append($"""<div class="baris-ai">{Avatar}<div class="gelembung ai isi-catatan">{Markah.KeHtml(jawaban, tautan, geserJudul: 2)}</div></div>""").Append('\n');
             var dibaca = g.Dibaca.Count == 0 ? "" : $"""{t["Catatan yang dibaca:", "Notes read:"]} {string.Join(", ", g.Dibaca.Select(c =>
                 $"""<a href="{HtmlEncode(HalamanBelajar.Alamat(c))}">{HtmlEncode(c.Judul)}</a>"""))} · """;
             isi.Append($"""<p class="info" title="{Pemakaian(t, obrolan, g)}">{dibaca}{HalamanSerap.Dolar(t, g.Biaya)}</p>""").Append('\n');
@@ -157,10 +157,10 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         else
         {
             var detik = (int)(waktu.GetUtcNow() - g.Mulai).TotalSeconds;
-            isi.Append("""<div class="gelembung ai"><ol class="tahap">""");
+            isi.Append($"""<div class="baris-ai">{Avatar}<div class="gelembung ai"><ol class="tahap">""");
             foreach (var langkah in k.Langkah)
                 isi.Append($"""<li class="selesai">{HtmlEncode(langkah)}</li>""");
-            isi.Append($"""<li class="sedang">{t["Berpikir…", "Thinking…"]} · {t[$"{detik} detik", $"{detik} s"]}</li></ol></div>""").Append('\n');
+            isi.Append($"""<li class="sedang">{t["Berpikir…", "Thinking…"]} · {t[$"{detik} detik", $"{detik} s"]}</li></ol></div></div>""").Append('\n');
         }
         isi.Append("</section>\n");
     }
@@ -176,21 +176,31 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
             $"{model} · {masuk} tokens in ({t.Angka(g.TokenCache)} cached), {t.Angka(g.TokenKeluar)} out · {detik} s"];
     }
 
-    // Judul, tombol obrolan baru (kalau sudah mengobrol), dan catatan yang dibahas.
+    // Lencana Kevin Browser sebagai wajah guru AI.
+    const string Avatar = """<span class="avatar" aria-hidden="true">♞</span>""";
+
+    // Kepala seperti aplikasi chat: kembali, wajah guru, judul dan catatan
+    // yang dibahas, lalu tombol obrolan baru (kalau sudah mengobrol).
     static string Kepala(Teks t, string judul, Catatan? lampiran, bool sudahMengobrol) => $"""
-        <div class="judul-obrolan"><h1>{judul}</h1>{(sudahMengobrol ? $"""<a class="tombol" href="{Alamat}">{t["Obrolan baru", "New chat"]}</a>""" : "")}</div>
-        {Tentang(t, lampiran)}
+        <header class="kepala-obrolan">
+          <a class="kembali" href="{HtmlEncode(lampiran is null ? HalamanBawaan.Belajar : HalamanBelajar.Alamat(lampiran))}" title="{t["Kembali", "Back"]}" aria-label="{t["Kembali", "Back"]}">{Ikon.Kembali}</a>
+          {Avatar}
+          <div class="judul-obrolan"><h1>{judul}</h1>{Tentang(t, lampiran)}</div>{(sudahMengobrol
+              ? $"""<a class="tombol" href="{Alamat}">{Ikon.Baru}{t["Obrolan baru", "New chat"]}</a>"""
+              : "")}
+        </header>
         """;
 
-    static string Tentang(Teks t, Catatan? c) => c is null ? "" :
-        $"""<p class="catatan">{t["Tentang catatan", "About the note"]} <a href="{HtmlEncode(HalamanBelajar.Alamat(c))}">{HtmlEncode(c.Judul)}</a>{(c.Mapel is null ? "" : $" ({HtmlEncode(HalamanBelajar.NamaMapel(c.Mapel))})")}</p>""";
+    static string Tentang(Teks t, Catatan? c) => c is null
+        ? $"""<p>{t["Guru les yang belajar dari catatanmu", "A tutor that learns from your notes"]}</p>"""
+        : $"""<p>{t["Tentang catatan", "About the note"]} <a href="{HtmlEncode(HalamanBelajar.Alamat(c))}">{HtmlEncode(c.Judul)}</a>{(c.Mapel is null ? "" : $" ({HtmlEncode(HalamanBelajar.NamaMapel(c.Mapel))})")}</p>""";
 
     // Sapaan pembuka. Tetap, bukan dari AI, jadi tanpa biaya.
-    static string Sapaan(Teks t, Catatan? c) => $"""<div class="gelembung ai"><p>{(c is null
+    static string Sapaan(Teks t, Catatan? c) => $"""<div class="baris-ai">{Avatar}<div class="gelembung ai"><p>{(c is null
         ? t["Halo! Mau belajar apa hari ini? Tanyakan apa saja tentang pelajaranmu. Aku akan mencarinya di catatanmu, lalu menjelaskannya pelan-pelan.",
             "Hi! What do you want to learn today? Ask me anything about your lessons. I'll look in your notes, then explain it step by step."]
         : t[$"Halo! Kita bahas catatan <strong>{HtmlEncode(c.Judul)}</strong>, ya. Bagian mana yang ingin kamu pahami?",
-            $"Hi! Let's go through the note <strong>{HtmlEncode(c.Judul)}</strong>. Which part do you want to understand?"])}</p></div>""";
+            $"Hi! Let's go through the note <strong>{HtmlEncode(c.Judul)}</strong>. Which part do you want to understand?"])}</p></div></div>""";
 
     // Tombol saran untuk memulai obrolan tentang satu catatan; tulisannya jadi pesan pertama.
     string Saran(Teks t, string aksi)
@@ -215,11 +225,13 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         <form class="kirim menempel" action="{HtmlEncode(aksi)}" method="post">
           <input type="hidden" name="aksi" value="tanya">
           <input type="hidden" name="token" value="{TokenSekali.Buat()}">
-          <textarea id="akhir" name="pertanyaan" rows="2" autofocus aria-label="{t["Pesan", "Message"]}" placeholder="{(pertama
+          <div class="komposer">
+          <textarea id="akhir" name="pertanyaan" rows="1" autofocus aria-label="{t["Pesan", "Message"]}" placeholder="{(pertama
               ? t["mis. Apa bedanya gaya gesek statis dan kinetis?", "e.g. What's the difference between static and kinetic friction?"]
               : t["Tulis jawabanmu, atau tanya lagi", "Type your answer, or ask something else"])}">
         {HtmlEncode(pertanyaan)}</textarea>
-          <button class="tombol utama" type="submit"{(Pengaturan.Kunci is null ? " disabled" : "")}>{t["Kirim", "Send"]}</button>
+          <button class="tombol utama" type="submit"{(Pengaturan.Kunci is null ? " disabled" : "")}>{Ikon.Kirim}{t["Kirim", "Send"]}</button>
+          </div>
         </form>
         """;
 
@@ -228,15 +240,17 @@ sealed class HalamanTanya(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     static string FormulirBatal(Teks t, Obrolan o) => $"""
         <form class="kirim" action="{HtmlEncode(AlamatObrolan(o) + "#akhir")}" method="post">
           <input type="hidden" name="aksi" value="batal">
-          <textarea id="akhir" rows="2" disabled aria-label="{t["Pesan", "Message"]}" placeholder="{t["Tunggu jawabannya dulu…", "Wait for the answer…"]}"></textarea>
+          <div class="komposer">
+          <textarea id="akhir" rows="1" disabled aria-label="{t["Pesan", "Message"]}" placeholder="{t["Tunggu jawabannya dulu…", "Wait for the answer…"]}"></textarea>
           <button class="tombol" type="submit">{t["Batalkan", "Cancel"]}</button>
+          </div>
         </form>
         """;
 
     static string Kaki(Teks t, string model, IReadOnlyList<GiliranTanya> giliran)
     {
         var biaya = giliran.Count == 0 ? "" : $" · {t["biaya obrolan ini", "this chat cost"]} {HalamanSerap.Dolar(t, giliran.Sum(g => g.Biaya))}";
-        return $"""<p class="catatan">{t["Model:", "Model:"]} {HtmlEncode(model)} · <a href="{HalamanBawaan.Belajar}?ai">{t["ubah", "change"]}</a>{biaya}<br>{t[
+        return $"""<p class="catatan kaki-obrolan">{t["Model:", "Model:"]} {HtmlEncode(model)} · <a href="{HalamanBawaan.Belajar}?ai">{t["ubah", "change"]}</a>{biaya}<br>{t[
             "Pesanmu dan catatan yang dibaca AI dikirim ke DeepSeek. Obrolan tidak disimpan; yang penting, tulis jadi catatan.",
             "Your messages and the notes the AI reads are sent to DeepSeek. Conversations aren't saved; write down what matters as a note."]}</p>""";
     }

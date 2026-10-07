@@ -77,7 +77,7 @@ public sealed partial class UjiHalamanSerap : IDisposable
     public async Task SimpanKunciDanLihatSaldo()
     {
         var form = await Html("kevin://belajar?ai");
-        Assert.Contains("Belum ada kunci API.", form);
+        Assert.Contains("<strong>Belum ada kunci API</strong>", form);
         Assert.Contains("type=\"password\"", form);
 
         var hasil = await Html("kevin://belajar?ai", Post(("aksi", "simpan"), ("token", Ambil(Token(), form)),

@@ -70,24 +70,25 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         var judul = t["Asisten AI", "AI assistant"];
         string Pilihan(string terpilih) => string.Concat(PengaturanAi.SemuaModel.Select(m =>
             $"""<option value="{m}"{(m == terpilih ? " selected" : "")}>{HtmlEncode(NamaModel(t, m))}</option>"""));
-        var kunciAda = Pengaturan.KunciTersamar is { } samar
-            ? $"""<p>{t["Kunci tersimpan:", "Saved key:"]} <code>{HtmlEncode(samar)}</code>. {await Saldo(t)}</p>"""
-            : $"""<p>{t["Belum ada kunci API.", "No API key yet."]}</p>""";
+        var status = Pengaturan.KunciTersamar is { } samar
+            ? $"""<strong>{t["Kunci tersimpan", "Key saved"]}</strong><span><code>{HtmlEncode(samar)}</code> · {await Saldo(t)}</span>"""
+            : $"""<strong>{t["Belum ada kunci API", "No API key yet"]}</strong><span>{t["Tempel kuncinya di bawah.", "Paste it below."]}</span>""";
         var hapus = Pengaturan.Kunci is null ? "" : $"""
             <form action="{AlamatAi}" method="post">
               <input type="hidden" name="aksi" value="hapus">
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
-              <button class="tombol bahaya" type="submit">{t["Hapus kunci", "Remove key"]}</button>
+              <button class="tombol kecil bahaya-teks" type="submit">{t["Hapus kunci", "Remove key"]}</button>
             </form>
             """;
+        var kunciAda = $"""
+            <div class="kartu-status"><span class="ikon-kotak">{Ikon.Kunci}</span><div>{status}</div>{hapus}</div>
+            """;
         return (judul, $"""
-            {HalamanBelajar.Jejak(t, null)}
-            <h1>{judul}</h1>
-            <p class="pembuka">{t["Untuk menyerap materi pelajaran jadi catatan dan menjawab pertanyaan dari catatan, dengan kunci API DeepSeek milik sendiri.",
-                "Turns study material into notes and answers questions from the notes, with your own DeepSeek API key."]}</p>
+            {HalamanBelajar.Kepala(t, judul, keterangan: t["Untuk menyerap materi pelajaran jadi catatan dan menjawab pertanyaan dari catatan, dengan kunci API DeepSeek milik sendiri.",
+                "Turns study material into notes and answers questions from the notes, with your own DeepSeek API key."])}
             {HalamanPengaturan.Pesan(pesan)}
             {kunciAda}
-            <form class="tulis" action="{AlamatAi}" method="post">
+            <form class="tulis kartu-form" action="{AlamatAi}" method="post">
               <input type="hidden" name="aksi" value="simpan">
               <input type="hidden" name="token" value="{TokenSekali.Buat()}">
               <label>{t["Model untuk menyerap materi", "Model for turning material into notes"]} <select name="model">{Pilihan(Pengaturan.Model)}</select></label>
@@ -96,7 +97,6 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
               <p class="catatan">{t["Kosongkan kalau kuncinya tidak diganti.", "Leave empty to keep the current key."]}</p>
               <p class="tombol-tombol"><button class="tombol utama" type="submit">{t["Simpan", "Save"]}</button></p>
             </form>
-            {hapus}
             <h2>{t["Cara mendapat kunci", "How to get a key"]}</h2>
             <ol>
               <li>{t["Buat akun di <a href=\"https://platform.deepseek.com\">platform.deepseek.com</a>.", "Create an account at <a href=\"https://platform.deepseek.com\">platform.deepseek.com</a>."]}</li>
@@ -139,10 +139,8 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
     {
         var judul = t["Serap materi", "Turn material into notes"];
         var isi = new StringBuilder($"""
-            {HalamanBelajar.Jejak(t, null)}
-            <h1>{judul}</h1>
-            <p class="pembuka">{t["AI mengolah materi pelajaran jadi catatan per topik: yang penting dibawa, yang dilewati disebutkan.",
-                "AI turns study material into notes, one per topic: what matters is kept, and what was skipped is listed."]}</p>
+            {HalamanBelajar.Kepala(t, judul, keterangan: t["AI mengolah materi pelajaran jadi catatan per topik: yang penting dibawa, yang dilewati disebutkan.",
+                "AI turns study material into notes, one per topic: what matters is kept, and what was skipped is listed."])}
             {TanpaKunci(t, Pengaturan)}
             <h2>{t["Dari folder unduhan", "From the downloads folder"]}</h2>
 
@@ -315,8 +313,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
                 var diterima = k.HurufDiterima > 0 ? t[$", {t.Angka(k.HurufDiterima)} huruf diterima", $", {t.Angka(k.HurufDiterima)} characters received"] : "";
                 return (judul, $"""
                     <meta http-equiv="refresh" content="3">
-                    {HalamanBelajar.Jejak(t, null)}
-                    <h1>{judul}</h1>
+                    {HalamanBelajar.Kepala(t, judul)}
                     <p class="pembuka">{tujuan}</p>
                     <ol class="tahap">
                       <li class="selesai">{t["Dokumen dibaca", "Document read"]}</li>
@@ -336,8 +333,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
                 var judul = t["Selesai", "Done"];
                 var daftar = string.Concat(k.Hasil.Select(c => $"""<li><a href="{HtmlEncode(HalamanBelajar.Alamat(c))}">{HtmlEncode(c.Judul)}</a></li>"""));
                 return (judul, $"""
-                    {HalamanBelajar.Jejak(t, null)}
-                    <h1>{judul}</h1>
+                    {HalamanBelajar.Kepala(t, judul)}
                     {HalamanPengaturan.Pesan(t[$"{k.Hasil.Count} catatan baru dari {kerja.Sumber}.", k.Hasil.Count == 1 ? $"1 new note from {kerja.Sumber}." : $"{k.Hasil.Count} new notes from {kerja.Sumber}."])}
                     <ul class="daftar-catatan">{daftar}</ul>
                     <p class="catatan">{Pemakaian(t, kerja, k, detik)}</p>
@@ -352,8 +348,7 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
                     ? t["Penyerapan dibatalkan. Tidak ada catatan yang ditulis.", "Cancelled. No notes were written."]
                     : k.Galat!;
                 return (judul, $"""
-                    {HalamanBelajar.Jejak(t, null)}
-                    <h1>{judul}</h1>
+                    {HalamanBelajar.Kepala(t, judul)}
                     <p class="pembuka">{tujuan}</p>
                     {HalamanPengaturan.Pesan(pesan)}
                     {(k.Jawaban is null ? "" : $"""<p class="catatan">{Pemakaian(t, kerja, k, detik)}</p>""")}
@@ -475,9 +470,8 @@ sealed class HalamanSerap(BukuCatatan buku, TimeProvider waktu, AlatSerap alat)
         return t.Inggris ? teks : teks.Replace('.', ',');
     }
 
-    string Kerangka(Teks t, string judul, string isi) => $"""
-        {HalamanBelajar.Jejak(t, null)}
-        <h1>{judul}</h1>
+    static string Kerangka(Teks t, string judul, string isi) => $"""
+        {HalamanBelajar.Kepala(t, judul)}
         {isi}
         """;
 }

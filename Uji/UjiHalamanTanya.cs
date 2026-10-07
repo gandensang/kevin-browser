@@ -74,7 +74,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
     {
         Assert.Contains("href=\"kevin://belajar?tanya\"", await Html("kevin://belajar"));
         var catatan = await Html("kevin://belajar?m=fisika&c=2026-10-gaya-gesek");
-        Assert.Contains("<a class=\"tombol\" href=\"kevin://belajar?tanya&amp;m=fisika&amp;c=2026-10-gaya-gesek\">Tanya tentang catatan ini</a>", catatan);
+        Assert.Contains($"<a class=\"tombol utama\" href=\"kevin://belajar?tanya&amp;m=fisika&amp;c=2026-10-gaya-gesek\">{Ikon.Tanya}Tanya tentang catatan ini</a>", catatan);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
     {
         var html = await Html("kevin://belajar?tanya");
         Assert.Contains("Belum ada kunci API DeepSeek", html);
-        Assert.Contains("type=\"submit\" disabled>Kirim</button>", html);
+        Assert.Contains($"type=\"submit\" disabled>{Ikon.Kirim}Kirim</button>", html);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
         Assert.Contains("Model: deepseek-flash", mulai);
         Assert.Contains("<div class=\"gelembung ai\"><p>Halo! Mau belajar apa hari ini?", mulai);   // sapaan tetap, tanpa AI
         Assert.DoesNotContain("class=\"saran\"", mulai);   // tombol saran hanya untuk obrolan tentang satu catatan
-        Assert.Contains("type=\"submit\">Kirim</button>", mulai);
+        Assert.Contains($"type=\"submit\">{Ikon.Kirim}Kirim</button>", mulai);
         var alamat = await Kirim("kevin://belajar?tanya", "Apa itu gaya gesek <statis>?");
         var html = await TungguSelesai(alamat);
 
@@ -114,7 +114,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
         Assert.Contains("<form class=\"kirim menempel\" action=\"kevin://belajar?tanya&amp;obrolan=", html);
         Assert.Contains("<textarea id=\"akhir\" name=\"pertanyaan\"", html);
         Assert.Contains("placeholder=\"Tulis jawabanmu, atau tanya lagi\"", html);
-        Assert.Contains("href=\"kevin://belajar?tanya\">Obrolan baru</a>", html);
+        Assert.Contains($"href=\"kevin://belajar?tanya\">{Ikon.Baru}Obrolan baru</a>", html);
         Assert.Contains("biaya obrolan ini &lt;$0,001", html);
 
         // Pesan berikutnya dari kotak tulis di bawah jawaban.
@@ -142,7 +142,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
         Assert.Contains("<div class=\"gelembung ai\"><ol class=\"tahap\"><li class=\"sedang\">Berpikir… · 0 detik</li></ol></div>", html);
         Assert.DoesNotContain("name=\"pertanyaan\"", html);   // pesan berikutnya menunggu jawaban ini
         Assert.Contains("<form class=\"kirim\" action=", html);   // tidak menempel selama dimuat ulang
-        Assert.Contains("<textarea id=\"akhir\" rows=\"2\" disabled", html);
+        Assert.Contains("<textarea id=\"akhir\" rows=\"1\" disabled", html);
         Assert.Contains("<button class=\"tombol\" type=\"submit\">Batalkan</button>", html);   // di tempat tombol Kirim
 
         var obrolan = alamat[..alamat.IndexOf('#')];
@@ -240,7 +240,7 @@ public sealed partial class UjiHalamanTanya : IDisposable
 
         Assert.Contains("Obrolan ini sudah panjang.", html);
         Assert.DoesNotContain("name=\"pertanyaan\"", html);
-        Assert.Contains("href=\"kevin://belajar?tanya\">Obrolan baru</a>", html);
+        Assert.Contains($"href=\"kevin://belajar?tanya\">{Ikon.Baru}Obrolan baru</a>", html);
     }
 
     [Fact]

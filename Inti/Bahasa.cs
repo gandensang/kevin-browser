@@ -47,6 +47,13 @@ public readonly record struct Teks(Bahasa Bahasa)
         ? $"{NamaHariInggris[(int)t.DayOfWeek]}, {t.Day} {NamaBulanInggris[t.Month - 1]} {t.Year}"
         : $"{NamaHari[(int)t.DayOfWeek]}, {t.Day} {NamaBulan[t.Month - 1]} {t.Year}";
 
+    /// <summary>"3 Okt 2026" atau "3 Oct 2026"; tanpa tahun: "3 Okt".</summary>
+    public string TanggalSingkat(DateTime t, bool denganTahun = true)
+    {
+        var bulan = (Inggris ? NamaBulanInggris : NamaBulan)[t.Month - 1][..3];
+        return denganTahun ? $"{t.Day} {bulan} {t.Year}" : $"{t.Day} {bulan}";
+    }
+
     /// <summary>"09.05" atau "09:05".</summary>
     public string Jam(DateTimeOffset t) => t.ToString(Inggris ? "HH:mm" : "HH.mm", CultureInfo.InvariantCulture);
 
