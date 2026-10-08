@@ -47,7 +47,7 @@ Mesin tebak langkah tidak ikut paket. `MesinCatur` mengunduhnya dari rilis
 GitHub repo ini, `stockfish-19-tanpa-simd`, saat pemakai menekan tombol
 pasang. Isinya Stockfish yang kita bangun sendiri tanpa WASM SIMD, karena
 WebKit mematikan WASM SIMD di prosesor tanpa AVX dan versi resmi
-stockfish.js tidak jalan di sana (CONTRIBUTING.md, bagian jebakan). Rilis itu
+stockfish.js tidak jalan di sana (CONTRIBUTING.md, "Pitfalls we've already hit"). Rilis itu
 hanya perlu dibuat ulang kalau Stockfish diperbarui:
 
 1. `scripts/bangun-stockfish.sh` (±1 menit; pertama kali ditambah unduhan
