@@ -1,0 +1,18 @@
+diff --git a/src/emscripten/wasm-makefile.mk b/src/emscripten/wasm-makefile.mk
+--- a/src/emscripten/wasm-makefile.mk
++++ b/src/emscripten/wasm-makefile.mk
+@@ -15,6 +15,14 @@ ifeq ($(ASMJS),yes)
+ 	ssse3 = no
+ 	sse41 = no
+ 	EM_LDFLAGS += --memory-init-file 0
++else ifeq ($(NOSIMD),yes)
++	# WASM tanpa SIMD (prosesor x86-64 tanpa AVX: WebKit mematikan WASM SIMD)
++	popcnt = no
++	sse = no
++	sse2 = no
++	ssse3 = no
++	sse41 = no
++	EM_CXXFLAGS += -DUSE_POPCNT
+ else
+ 	EM_CXXFLAGS += -msimd128
+ 	# CPU settings

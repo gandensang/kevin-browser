@@ -4,31 +4,42 @@ namespace KevinBrowser.Asisten;
 
 /// <summary>
 /// Stockfish versi WebAssembly (stockfish.js, GPL-3.0), diunduh sekali dari
-/// rilis GitHub-nya saat pemakai menekan tombol pasang, lalu disimpan di
-/// folder data sebagai berkas terpisah (Kevin Browser tetap MIT). Jalan di
-/// halaman catur sebagai Web Worker, satu thread, tanpa SharedArrayBuffer.
+/// rilis GitHub Kevin Browser saat pemakai menekan tombol pasang, lalu
+/// disimpan di folder data sebagai berkas terpisah (Kevin Browser tetap MIT).
+/// Jalan di halaman catur sebagai Web Worker, satu thread, tanpa
+/// SharedArrayBuffer.
 /// </summary>
 /// <remarks>
-/// Varian "lite single": ±1,8 MB termasuk jaringan sarafnya, cocok untuk
-/// laptop lemah dan kuota terbatas. Hanya berkas yang sidik SHA-256-nya persis
+/// Varian "lite single" (±1,7 MB termasuk jaringan sarafnya, cocok untuk
+/// laptop lemah dan kuota terbatas) yang dibangun sendiri TANPA WASM SIMD
+/// (scripts/bangun-stockfish.sh, hasilnya sama persis tiap dibangun). Versi
+/// resmi stockfish.js butuh SIMD, dan WebKit mematikan WASM SIMD di prosesor
+/// x86-64 tanpa AVX: di laptop seperti itu mesinnya diam saja (terjadi 8 Okt
+/// 2026). Harganya, terukur di laptop pengembang: ±4× lebih lambat dari versi
+/// SIMD (500 ms → depth 11–12 lawan 15), tetapi ±2–4× lebih cepat dari versi
+/// JavaScript murni stockfish.js. Hanya berkas yang sidik SHA-256-nya persis
 /// sama dengan di bawah yang disimpan dan disajikan: kodenya jalan di halaman
 /// kevin://, jadi tidak boleh ada yang bisa menyelipkan skrip lain.
 /// </remarks>
-public sealed class MesinCatur(string folder, IJaringan jaringan)
+public sealed class MesinCatur(string folder, IJaringan jaringan, string asal = MesinCatur.AsalRilis)
 {
-    const string Asal = "https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/";
+    /// <summary>Rilis GitHub tempat berkas mesin dan arsip sumbernya (GPL) diunggah.</summary>
+    public const string AsalRilis = "https://github.com/gandensang/kevin-browser/releases/download/stockfish-19-tanpa-simd/";
+
+    /// <summary>Halaman rilis itu: berkas mesin, sumber, dan cara membangunnya.</summary>
+    public const string HalamanRilis = "https://github.com/gandensang/kevin-browser/releases/tag/stockfish-19-tanpa-simd";
 
     public const string Nama = "Stockfish 19";
 
-    /// <summary>Berkas skrip; berkas WASM-nya disebut di belakang # alamatnya (lihat catur.js).</summary>
-    public const string Skrip = "stockfish-19-lite-single.js";
+    /// <summary>Berkas skrip; berkas WASM-nya disebut di belakang # alamatnya (lihat HalamanCatur.Perantara).</summary>
+    public const string Skrip = "stockfish-19-lite-tanpa-simd.js";
 
-    public const string Wasm = "stockfish-19-lite-single.wasm";
+    public const string Wasm = "stockfish-19-lite-tanpa-simd.wasm";
 
     internal static readonly (string Nama, long Ukuran, string Sha256)[] Berkas =
     [
-        (Skrip, 21_415, "d3344124ab067fb0b90ee77873bb8e9fbf5fc01bc525fe714b0f942581e889e6"),
-        (Wasm, 1_787_571, "57ac2d72312aba346760e3f173f687a8c211208e97a87268436f7f0e10bb5387"),
+        (Skrip, 21_415, "f141b71ed421870ffa226abfc89792d5c282768fefb31c510f0198f4911df28e"),
+        (Wasm, 1_785_285, "7e4ed1cd9657607928347f1fb4aa3f1e3d12b819b8ea257e7aa3a40707494a4b"),
     ];
 
     /// <summary>Besar unduhan seluruhnya, dalam bait.</summary>
@@ -72,7 +83,7 @@ public sealed class MesinCatur(string folder, IJaringan jaringan)
             {
                 using var isi = new MemoryStream();
                 var dasar = sebelumnya;
-                var status = await jaringan.Unduh(new PermintaanHttp("GET", Asal + nama, [("User-Agent", $"KevinBrowser/{HalamanBawaan.Versi}")]),
+                var status = await jaringan.Unduh(new PermintaanHttp("GET", asal + nama, [("User-Agent", $"KevinBrowser/{HalamanBawaan.Versi}")]),
                     new AliranHitung(isi, n => Interlocked.Exchange(ref terunduh, dasar + n)), ukuran, batal);
                 if (status != 200)
                     throw new GalatAi(status, nama);

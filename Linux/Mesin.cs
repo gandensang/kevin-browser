@@ -107,13 +107,17 @@ static class Mesin
         // Uji asisten AI tanpa kunci dan tanpa biaya: server tiruan DeepSeek di laptop sendiri.
         if (Environment.GetEnvironmentVariable("KEVIN_BROWSER_UJI_AI") is { Length: > 0 } tiruan)
             alamatAi = tiruan;
+        // Uji pemasangan mesin catur dari server di laptop sendiri (berkas dist/stockfish/).
+        var asalMesin = Environment.GetEnvironmentVariable("KEVIN_BROWSER_UJI_MESIN") is { Length: > 0 } ujiMesin ? ujiMesin : MesinCatur.AsalRilis;
+#else
+        const string asalMesin = MesinCatur.AsalRilis;
 #endif
         var alat = new AlatSerap(new PengaturanAi(Path.Combine(folderData, BerkasAsisten), alamatAi), new JaringanSoup(),
             GLib.Functions.GetUserSpecialDir(GLib.UserDirectory.DirectoryDownload) ?? GLib.Functions.GetHomeDir(), TeksPdf.Ambil);
         var buku = new BukuCatatan(FolderCatatan());
         var belajar = new HalamanBelajar(buku, TimeProvider.System, BukaFolder, alat);
         var catur = new HalamanCatur(new KoleksiPartai(Path.Combine(folderData, FolderCatur), alat.Jaringan),
-            new MesinCatur(Path.Combine(folderData, FolderCatur, "mesin"), alat.Jaringan), buku, TimeProvider.System,
+            new MesinCatur(Path.Combine(folderData, FolderCatur, "mesin"), alat.Jaringan, asalMesin), buku, TimeProvider.System,
             new PelatihCatur(alat.Pengaturan, new KlienAi(alat.Jaringan), TimeProvider.System) { Pencatat = Catat.Tulis });
         Layanan = new LayananLinux(Riwayat, Bookmark, Preferensi, folderData, folderCache, belajar, catur);
 

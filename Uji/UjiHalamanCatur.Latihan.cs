@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using KevinBrowser;
@@ -61,11 +62,11 @@ public sealed partial class UjiHalamanCatur
         Assert.DoesNotContain("latihan.js", html);
 
         // Berkas yang isinya lain dari sidik yang dicatat tidak dipakai.
-        layanan.Jaringan.JawabUnduh = p => (200, new byte[p.Alamat.EndsWith(".wasm", StringComparison.Ordinal) ? 1_787_571 : 21_415]);
+        layanan.Jaringan.JawabUnduh = p => (200, new byte[p.Alamat.EndsWith(".wasm", StringComparison.Ordinal) ? 1_785_285 : 21_415]);
         var hasil = await Html("kevin://catur?mesin", Post(("aksi", "pasang"), ("token", Ambil(Token(), html)), ("kembali", "kevin://catur?latihan=x")));
         Assert.Contains("tidak sama dengan yang diharapkan", hasil);
         Assert.False(layanan.MesinCatur.Terpasang);
-        Assert.Equal("https://github.com/nmrugg/stockfish.js/releases/download/v19.0.0/stockfish-19-lite-single.js",
+        Assert.Equal("https://github.com/gandensang/kevin-browser/releases/download/stockfish-19-tanpa-simd/stockfish-19-lite-tanpa-simd.js",
             layanan.Jaringan.Permintaan[^1].Alamat);
 
         layanan.Jaringan.JawabUnduh = _ => throw new GalatAi(0, "tidak ada jaringan");
@@ -89,6 +90,23 @@ public sealed partial class UjiHalamanCatur
         tahan.SetResult();
         await Assert.ThrowsAsync<GalatAi>(() => pertama);
         Assert.Equal(0, (await Data("kevin://catur?mesin&kemajuan", "")).GetProperty("total").GetInt64());
+    }
+
+    [Fact]
+    public async Task PerantaraMesin()
+    {
+        var (isi, jenis) = await HalamanBawaan.Ambil("kevin-mesin://mesin/perantara.html", layanan, null);
+        var html = Encoding.UTF8.GetString(isi);
+        Assert.Equal("text/html", jenis);
+        // Mesin buatan sendiri tanpa WASM SIMD (prosesor tanpa AVX), dan galatnya berkode.
+        Assert.Contains("new Worker('stockfish-19-lite-tanpa-simd.js#' + encodeURIComponent(new URL('stockfish-19-lite-tanpa-simd.wasm', location.href)))", html);
+        Assert.Contains("lapor('WASM')", html);
+        Assert.Contains("lapor('MUAT', e.message)", html);
+
+        layanan.PasangMesinTiruan();
+        (isi, jenis) = await HalamanBawaan.Ambil("kevin-mesin://mesin/stockfish-19-lite-tanpa-simd.wasm", layanan, null);
+        Assert.Equal("application/wasm", jenis);
+        Assert.Equal(1_785_285, isi.Length);
     }
 
     [Fact]

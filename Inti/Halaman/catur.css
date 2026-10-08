@@ -211,6 +211,9 @@ main.catur:has(.tata-latihan) { max-width: none; padding: 0.8rem 1rem 1.2rem; }
 .kolom-obrolan .gelembung.siswa { max-width: min(80%, 48rem); }
 .kolom-obrolan .info { align-self: flex-start; margin: -0.4rem 0 0 2.7rem; font-size: 0.8rem; color: var(--redup); }
 .kolom-obrolan .info.galat { margin-left: 0; color: #b0472f; }
+/* Margin negatif di atas menempelkan info ke gelembung sebelumnya; tanpa
+   gelembung (mis. mesin gagal sebelum soal pertama) barisnya terpotong. */
+.kolom-obrolan .info:first-child { margin-top: 0; }
 .gelembung.soal .lalu { color: var(--redup); font-size: 0.92rem; font-variant-numeric: tabular-nums; }
 .baris-ai.sedang .gelembung { color: var(--redup); }
 /* Tiga titik "sedang berpikir", hanya selama menunggu pelatih atau

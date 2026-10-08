@@ -85,18 +85,24 @@ public sealed partial class HalamanCatur(KoleksiPartai koleksi, MesinCatur mesin
     // diterima dari kevin://catur. Keluarannya dikirim ke '*' karena WebKit
     // tidak mencocokkan asal skema lokal sebagai tujuan postMessage (terlihat
     // 7 Okt 2026: dengan tujuan 'kevin://catur' tidak ada yang sampai); isinya
-    // hanya keluaran mesin, dan halaman catur memeriksa pengirimnya.
+    // hanya keluaran mesin, dan halaman catur memeriksa pengirimnya. Kalau
+    // gagal, perantara melapor kodenya (WASM, WORKER, MUAT) beserta pesan
+    // WebKit; latihan.js menampilkannya supaya pemakai bisa melaporkannya.
     const string Perantara = $$"""
         <!doctype html><meta charset="utf-8"><script>
         'use strict';
         let mesin;
-        try {
-          mesin = new Worker('{{MesinCatur.Skrip}}#' + encodeURIComponent(new URL('{{MesinCatur.Wasm}}', location.href)));
-          mesin.onmessage = e => parent.postMessage({ mesin: String(e.data) }, '*');
-          mesin.onerror = () => parent.postMessage({ galat: true }, '*');
-        } catch (e) {
-          parent.postMessage({ galat: true }, '*');
-        }
+        const lapor = (kode, rincian) => parent.postMessage({ galat: kode, rincian: String(rincian || '').slice(0, 200) }, '*');
+        if (typeof WebAssembly !== 'object')
+          lapor('WASM');
+        else
+          try {
+            mesin = new Worker('{{MesinCatur.Skrip}}#' + encodeURIComponent(new URL('{{MesinCatur.Wasm}}', location.href)));
+            mesin.onmessage = e => parent.postMessage({ mesin: String(e.data) }, '*');
+            mesin.onerror = e => lapor('MUAT', e.message);
+          } catch (e) {
+            lapor('WORKER', e);
+          }
         addEventListener('message', e => {
           if (e.origin === 'kevin://catur' && mesin && typeof e.data === 'string')
             mesin.postMessage(e.data);

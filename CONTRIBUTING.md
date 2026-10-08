@@ -139,9 +139,14 @@ the address to the window that's already open.
   session (saving again replaces it).
   `MesinCatur` ("chess engine") downloads Stockfish's WebAssembly build once,
   when the user presses Install, checks its SHA-256 fingerprints, and keeps
-  it in the data folder; it is GPL-3.0 and never part of our package. It runs
-  as a Web Worker inside a hidden iframe on a second scheme, `kevin-mesin://`
-  (see the pitfalls below), and talks to the chess page with `postMessage`.
+  it in the data folder; it is GPL-3.0 and never part of our package. We
+  build it ourselves without WebAssembly SIMD (`scripts/bangun-stockfish.sh`,
+  see the pitfalls below) and host it, with its source, on this repository's
+  GitHub release `stockfish-19-tanpa-simd` (`RILIS.md`). It runs as a Web
+  Worker inside a hidden iframe on a second scheme, `kevin-mesin://` (see the
+  pitfalls below), and talks to the chess page with `postMessage`. When it
+  fails, the page shows a short code (`WASM`, `WORKER`, `MUAT`, `WAKTU-0` to
+  `WAKTU-3`, `JS`; listed at the top of `latihan.js`) that users can report.
   The piece images are the BSD-licensed Cburnett set
   (`THIRD-PARTY-NOTICES.md`). `Penyerap`
   ("absorber") turns study material into notes with one DeepSeek call
@@ -245,6 +250,12 @@ Each of these cost hours. Read them before touching `Linux/`.
   `e.origin`; and `fetch()` from a `kevin://` page to `kevin://` itself fails
   unless the response carries `Access-Control-Allow-Origin: kevin://catur`.
   Ordinary websites still can't read `kevin://` with that header.
+- **WebKit turns off WebAssembly SIMD on x86-64 processors without AVX**
+  (many older or cheaper Celeron, Pentium and Atom chips), and the official
+  stockfish.js builds need SIMD: on such a laptop the engine stays silent,
+  with no error at all. That's why we build Stockfish without SIMD. You can
+  reproduce it on any laptop with `JSC_useWasmSIMD=false` in the
+  environment; JSC options reach the web process.
 - **On `kevin://` pages, `history.replaceState` with a full URL throws**,
   even for the same origin; only the `#fragment` may change. A script that
   calls it first stops right there.
@@ -279,6 +290,11 @@ Each of these cost hours. Read them before touching `Linux/`.
   AI assistant's requests to `scripts/deepseek-tiruan.py`, a stand-in server
   on your own machine, so the Learn pages can be tried without a key or any
   cost. Any key is accepted. The unit tests use `JaringanPalsu` instead.
+- `KEVIN_BROWSER_UJI_MESIN=http://127.0.0.1:8791/` (Debug builds only)
+  installs the chess engine from your own machine instead of the GitHub
+  release, e.g. `python3 -m http.server 8791 --directory dist/stockfish`
+  after `scripts/bangun-stockfish.sh`. Add `JSC_useWasmSIMD=false` to try it
+  the way a processor without AVX runs it.
 - `scripts/klik.py` sends real X11 clicks and keystrokes to the newest
   kevin-browser window, and `scripts/tangkap.py` takes a screenshot of it.
   `klik.py` refuses to send anything if that window isn't focused. To keep

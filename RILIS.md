@@ -40,3 +40,28 @@ setiap laptop pemakai harus memasang kunci baru.
 persis byte-per-byte dengan salinannya di repo APT (disalin
 `scripts/rilis-apt.sh`), supaya dpkg tidak bertanya saat paket menimpa
 berkas yang dipasang manual.
+
+## Mesin catur (Stockfish)
+
+Mesin tebak langkah tidak ikut paket. `MesinCatur` mengunduhnya dari rilis
+GitHub repo ini, `stockfish-19-tanpa-simd`, saat pemakai menekan tombol
+pasang. Isinya Stockfish yang kita bangun sendiri tanpa WASM SIMD, karena
+WebKit mematikan WASM SIMD di prosesor tanpa AVX dan versi resmi
+stockfish.js tidak jalan di sana (CONTRIBUTING.md, bagian jebakan). Rilis itu
+hanya perlu dibuat ulang kalau Stockfish diperbarui:
+
+1. `scripts/bangun-stockfish.sh` (±1 menit; pertama kali ditambah unduhan
+   Emscripten ±300 MB). Hasilnya di `dist/stockfish/`: dua berkas mesin dan
+   arsip sumbernya. Membangun ulang sumber yang sama menghasilkan berkas
+   yang persis sama.
+2. Commit dan push perubahan skrip atau tambalannya dulu, lalu unggah
+   ketiga berkas ke rilis bertag baru yang menunjuk ke commit itu, mis.:
+
+       gh release create stockfish-20-tanpa-simd dist/stockfish/* --target belajar --latest=false \
+           --title "Stockfish 20 tanpa SIMD (mesin tebak langkah)" --notes "…"
+
+   Arsip sumbernya wajib ikut (GPL-3.0).
+3. Tulis nama berkas, ukuran, dan sidik SHA-256 yang dicetak skrip ke
+   `MesinCatur` (`Skrip`, `Wasm`, `Berkas`, `AsalRilis`, `HalamanRilis`).
+   Jangan menimpa berkas di rilis yang masih dipakai versi browser yang
+   beredar: browser itu menolak berkas yang sidiknya lain.

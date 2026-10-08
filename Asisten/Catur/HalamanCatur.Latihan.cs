@@ -218,7 +218,7 @@ public sealed partial class HalamanCatur
         ("membaca", t["Pelatih memikirkan jawabanmu… (bisa sampai satu-dua menit)", "The coach is thinking about your answer… (this can take a minute or two)"]),
         ("menguji", t["Stockfish menguji jawabanmu… {0}/{1}", "Stockfish is testing your answer… {0}/{1}"]),
         ("menganalisis", t["Stockfish masih menganalisis posisi ini…", "Stockfish is still analysing this position…"]),
-        ("mesinGagal", t["Mesin catur tidak bisa dijalankan. Coba muat ulang halaman ini.", "The chess engine couldn't start. Try reloading this page."]),
+        ("mesinGagal", t["Mesin catur tidak bisa dijalankan (kode {0}). Coba muat ulang halaman ini. Kalau pesan ini muncul lagi, catat kodenya.", "The chess engine couldn't start (code {0}). Try reloading this page. If this message comes back, note the code."]),
         ("menilai", t["Pelatih menyusun penilaian latihanmu… (bisa sampai satu menit)", "The coach is putting your results together… (this can take a minute)"]),
         ("selesai", t["Tidak ada lagi posisi penting untuk sisimu di partai ini. Coba sebagai sisi lain, atau latih partai lain.",
             "There are no more important positions for your side in this game. Try the other side, or practise another game."]),
@@ -641,6 +641,6 @@ public sealed partial class HalamanCatur
         """;
 
     static string LisensiMesin(Teks t) => t[
-        """Stockfish adalah perangkat lunak bebas berlisensi GPL-3.0, versi WebAssembly dari <a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, disimpan terpisah dari Kevin Browser.""",
-        """Stockfish is free software under the GPL-3.0, in the WebAssembly build from <a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a>, stored separately from Kevin Browser."""];
+        $"""Stockfish adalah perangkat lunak bebas berlisensi GPL-3.0. Versi WebAssembly ini dibangun dari <a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a> tanpa SIMD supaya jalan juga di prosesor lama (<a href="{MesinCatur.HalamanRilis}">sumber dan cara membangunnya</a>), dan disimpan terpisah dari Kevin Browser.""",
+        $"""Stockfish is free software under the GPL-3.0. This WebAssembly build is made from <a href="https://github.com/nmrugg/stockfish.js">stockfish.js</a> without SIMD so it also runs on older processors (<a href="{MesinCatur.HalamanRilis}">source and build steps</a>), and is stored separately from Kevin Browser."""];
 }

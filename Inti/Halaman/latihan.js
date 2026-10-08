@@ -39,14 +39,39 @@
 
   // ---------- mesin ----------
 
+  // Kalau mesin gagal, pesannya membawa kode supaya pemakai bisa
+  // melaporkannya: WASM, WORKER, MUAT (dari perantara, lihat
+  // HalamanCatur.Perantara), WAKTU-n (belum siap sesudah 30 detik; n = tahap
+  // terakhir: 0 perantara tidak termuat, 1 mesin diam sama sekali, 2 mesin
+  // bersuara tetapi tidak menjawab "uci", 3 tidak menjawab "isready"), dan JS
+  // (galat lain di skrip ini).
   const mesin = (() => {
     const bingkai = document.createElement('iframe');
-    let siap, gagal, selesai = null, info = [];
-    const janjiSiap = new Promise((ok, tolak) => { siap = ok; gagal = tolak; });
+    let siap, tolakSiap, sudahSiap = false, selesai = null, tolakCari = null, mati = null, info = [];
+    let tahap = 0, barisTerakhir = '';
+    const janjiSiap = new Promise((ok, tolak) => { siap = ok; tolakSiap = tolak; });
     let antre = Promise.resolve();
     // Isinya hanya perintah UCI; perantara sendiri hanya menerima dari kevin://catur.
     const kirim = s => bingkai.contentWindow.postMessage(s, '*');
-    setTimeout(() => gagal(), 30000);
+
+    // Mesin tidak bisa dipakai lagi: pencarian yang sedang menunggu dan yang
+    // berikutnya gagal dengan galat berkode, dan pesannya tampil sekali.
+    function rusak(kode, rincian) {
+      if (mati)
+        return;
+      mati = Object.assign(new Error(kode), { kode, rincian });
+      tolakSiap(mati);
+      if (tolakCari) {
+        const tolak = tolakCari;
+        selesai = tolakCari = null;
+        tolak(mati);
+      }
+      gagal(mati);
+    }
+    setTimeout(() => {
+      if (!sudahSiap)
+        rusak('WAKTU-' + tahap, barisTerakhir);
+    }, 30000);
 
     // "info depth 14 … multipv 2 score cp -35 … pv e7e5 g1f3 …"
     function bacaInfo(s) {
@@ -63,28 +88,33 @@
     }
 
     function baris(s) {
-      if (s === 'uciok')
+      tahap = Math.max(tahap, 2);
+      if (s === 'uciok') {
+        tahap = 3;
         kirim('isready');
-      else if (s === 'readyok')
+      } else if (s === 'readyok') {
+        sudahSiap = true;
         siap();
-      else if (s.startsWith('info ')) {
+      } else if (s.startsWith('info ')) {
         const i = bacaInfo(s);
         if (i)
           info[i.k - 1] = i;
       } else if (s.startsWith('bestmove') && selesai) {
         const ok = selesai;
-        selesai = null;
+        selesai = tolakCari = null;
         ok(info.filter(Boolean));
-      }
+      } else
+        barisTerakhir = s.slice(0, 120);
     }
 
     addEventListener('message', e => {
       if (e.origin !== 'kevin-mesin://mesin' || e.source !== bingkai.contentWindow || !e.data)
         return;
-      if (e.data.siap)
+      if (e.data.siap) {
+        tahap = Math.max(tahap, 1);
         kirim('uci');
-      else if (e.data.galat)
-        gagal();
+      } else if (e.data.galat)
+        rusak(String(e.data.galat), e.data.rincian);
       else if (typeof e.data.mesin === 'string')
         baris(e.data.mesin);
     });
@@ -94,9 +124,14 @@
 
     // Satu pencarian sekaligus; yang berikutnya menunggu di antrean.
     function cari(fen, jumlah, kedalaman, waktu, langkah) {
-      const kerja = antre.then(() => janjiSiap).then(() => new Promise(ok => {
+      const kerja = antre.then(() => janjiSiap).then(() => new Promise((ok, tolak) => {
+        if (mati) {
+          tolak(mati);
+          return;
+        }
         info = [];
         selesai = ok;
+        tolakCari = tolak;
         kirim('setoption name MultiPV value ' + jumlah);
         kirim('position fen ' + fen);
         kirim('go depth ' + kedalaman + ' movetime ' + waktu + (langkah ? ' searchmoves ' + langkah.join(' ') : ''));
@@ -361,12 +396,14 @@
     return r;
   }
 
-  function gagal() {
+  // Galat mesin (berkode, lihat mesin di atas) atau galat skrip lain (JS).
+  function gagal(e) {
     if (mesinGagal)
       return;
     mesinGagal = true;
     hapusStatus();
-    info(T.mesinGagal, 'galat');
+    const rincian = e && e.kode ? e.rincian : e && e.message;
+    info(teks('mesinGagal', e && e.kode || 'JS') + (rincian ? ' (' + rincian + ')' : ''), 'galat');
     tBerikutnya.disabled = true;
   }
 
